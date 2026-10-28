@@ -41,3 +41,29 @@ Connexion par code à 6 chiffres envoyé par e-mail (valable 10 minutes, un envo
 | Supprimer son compte | `rpc/request_account_deletion()` | Bloque immédiatement le compte ; purge serveur horaire. |
 
 Le statut du compte, l'attestation d'âge et les dates ne sont jamais modifiables par le client.
+
+## Matchs
+
+| Opération | Appel | Règles |
+|---|---|---|
+| Lister / lire | `GET /rest/v1/match_details` | Lecture pour tout utilisateur connecté. Champs calculés : `participant_count`, `spots_left`, `display_status`, `is_organizer`, `is_participant`, `latitude`/`longitude` (null si lieu à définir). |
+| Participants | `GET /rest/v1/match_participants?match_id=eq.<id>` | Inscriptions actives avec nom et avatar ; `is_organizer`. |
+| Créer | `rpc/create_match(p_match jsonb)` → `uuid` | Compte actif. L'organisateur est inscrit dans la même transaction. |
+| Modifier | `rpc/update_match(p_match_id, p_changes jsonb)` | Organisateur actuel, match ouvert et pas encore commencé. Seuls les champs présents changent. |
+| Annuler | `rpc/cancel_match(p_match_id)` | Mêmes conditions. Les inscriptions restent visibles, aucune nouvelle n'est possible. |
+
+Champs acceptés dans `p_match` / `p_changes` (tout autre champ → `UNKNOWN_FIELD`) : `title`, `description`, `starts_at`, `duration_minutes`, `capacity`, `format` (`5v5`, `7v7`, `11v11`), `skill_level` (`all`, `beginner`, `intermediate`, `advanced`), `location_mode` (`fixed`, `to_define`), `location_name`, `latitude`, `longitude`, `estimated_total_cost`, `estimated_cost_per_player`, `currency`.
+
+`display_status` : `open`, `full` (participants actifs ≥ capacité), `in_progress`, `completed`, `cancelled`. Une tâche planifiée passe les matchs terminés en `completed` toutes les 15 minutes ; la vue les affiche comme terminés dès leur fin.
+
+| Code métier | HTTP | Signification |
+|---|---|---|
+| `INVALID_INPUT`, `UNKNOWN_FIELD`, `INVALID_FIELD_VALUE` | 400 | Saisie mal formée, champ non autorisé, valeur illisible (ex. format inconnu). |
+| `INVALID_TITLE`, `INVALID_DESCRIPTION`, `INVALID_START_TIME`, `INVALID_DURATION`, `INVALID_CAPACITY`, `INVALID_FORMAT` | 400 | Titre 3–80 caractères, description ≤ 1000, durée 15–600 min, capacité 4–50. |
+| `INVALID_LOCATION`, `INVALID_LOCATION_NAME`, `INVALID_COORDINATES` | 400 | Terrain précis sans nom/position, lieu à définir avec position, coordonnées hors limites. |
+| `INVALID_COST`, `INVALID_CURRENCY` | 400 | Coût négatif, devise non ISO. |
+| `START_TOO_SOON`, `START_TOO_FAR` | 422 | Début dans moins de 15 minutes, ou dans plus d'un an. |
+| `NOT_ORGANIZER` | 403 | Action réservée à l'organisateur actuel. |
+| `MATCH_NOT_FOUND` | 404 | Match inexistant. |
+| `MATCH_NOT_EDITABLE`, `MATCH_ALREADY_STARTED` | 409 | Match annulé / terminé, ou déjà commencé. |
+| `CAPACITY_BELOW_PARTICIPANTS` | 409 | Capacité inférieure au nombre d'inscrits actifs. |

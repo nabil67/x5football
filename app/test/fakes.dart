@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:x5football/data/app_error.dart';
 import 'package:x5football/data/auth_repository.dart';
+import 'package:x5football/data/match_repository.dart';
 import 'package:x5football/data/profile_repository.dart';
+import 'package:x5football/models/match.dart';
 import 'package:x5football/models/profile.dart';
 
 class FakeAuthRepository implements AuthRepository {
@@ -75,3 +77,85 @@ class FakeProfileRepository implements ProfileRepository {
   @override
   Future<void> requestAccountDeletion() async => calls.add('delete');
 }
+
+class FakeMatchRepository implements MatchRepository {
+  FakeMatchRepository({
+    List<Match>? upcoming,
+    List<Match>? mine,
+    this.participants = const [],
+  }) : upcoming = upcoming ?? [],
+       mine = mine ?? [];
+
+  List<Match> upcoming;
+  List<Match> mine;
+  List<Participant> participants;
+  final calls = <String>[];
+  final inputs = <MatchInput>[];
+  AppError? createError;
+
+  @override
+  Future<List<Match>> listUpcoming() async => upcoming;
+
+  @override
+  Future<List<Match>> listMine() async => mine;
+
+  @override
+  Future<Match> getMatch(String id) async =>
+      [...upcoming, ...mine].firstWhere((m) => m.id == id);
+
+  @override
+  Future<List<Participant>> listParticipants(String matchId) async =>
+      participants;
+
+  @override
+  Future<String> createMatch(MatchInput input) async {
+    calls.add('create');
+    inputs.add(input);
+    if (createError != null) throw createError!;
+    final match = fakeMatch(id: 'new', title: input.title, isOrganizer: true);
+    mine = [match];
+    return match.id;
+  }
+
+  @override
+  Future<void> updateMatch(String id, MatchInput input) async {
+    calls.add('update:$id');
+    inputs.add(input);
+  }
+
+  @override
+  Future<void> cancelMatch(String id) async => calls.add('cancel:$id');
+}
+
+Match fakeMatch({
+  String id = 'm1',
+  String title = 'Foot du dimanche',
+  bool isOrganizer = false,
+  bool isParticipant = false,
+  LocationMode locationMode = LocationMode.toDefine,
+  String? locationName = 'Centre-ville',
+  int capacity = 10,
+  int participantCount = 1,
+  MatchDisplayStatus displayStatus = MatchDisplayStatus.open,
+  double? estimatedCostPerPlayer,
+}) => Match(
+  id: id,
+  organizerId: 'orga',
+  organizerName: 'Orga',
+  title: title,
+  startsAt: DateTime(2026, 11, 1, 14),
+  durationMinutes: 90,
+  capacity: capacity,
+  participantCount: participantCount,
+  spotsLeft: capacity - participantCount,
+  format: MatchFormat.fiveASide,
+  skillLevel: SkillLevel.all,
+  locationMode: locationMode,
+  locationName: locationName,
+  latitude: locationMode == LocationMode.fixed ? 47.39 : null,
+  longitude: locationMode == LocationMode.fixed ? 0.69 : null,
+  estimatedCostPerPlayer: estimatedCostPerPlayer,
+  displayStatus: displayStatus,
+  isOrganizer: isOrganizer,
+  isParticipant: isParticipant || isOrganizer,
+);

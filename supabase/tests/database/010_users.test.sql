@@ -1,6 +1,6 @@
 -- Profils, attestation d'âge, statuts de compte, RLS et suppression de compte.
 begin;
-select plan(26);
+select plan(27);
 
 -- Préparation (en tant que postgres)
 select tests.create_auth_user('nouveau@test.local') as new_id \gset
@@ -112,6 +112,12 @@ select throws_ok($$select private.current_active_user_id()$$, 'PT403', 'ACCOUNT_
 select private.purge_pending_deletions();
 select is((select count(*)::int from auth.users where id = :'alice'), 0,
   'la purge supprime l''identité et le profil du compte');
+
+-- La session d'Alice reste techniquement valide jusqu'à son expiration.
+select tests.authenticate_as(:'alice');
+select throws_ok($$select public.complete_profile('Alice', true)$$, 'PT401', 'AUTH_REQUIRED',
+  'une session dont l''identité a été supprimée doit se reconnecter');
+reset role;
 
 select * from finish();
 rollback;

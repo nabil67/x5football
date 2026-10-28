@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/app_error.dart';
 import '../../data/auth_repository.dart';
+import '../../data/match_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../models/profile.dart';
 import '../home/home_screen.dart';
@@ -12,10 +13,16 @@ import 'sign_in_screen.dart';
 
 /// Choisit l'écran racine : connexion, création du profil, compte inactif ou accueil.
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key, required this.auth, required this.profiles});
+  const AuthGate({
+    super.key,
+    required this.auth,
+    required this.profiles,
+    required this.matches,
+  });
 
   final AuthRepository auth;
   final ProfileRepository profiles;
+  final MatchRepository matches;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -58,6 +65,7 @@ class _AuthGateState extends State<AuthGate> {
       final profile = await widget.profiles.fetchMyProfile();
       if (mounted) setState(() => _profile = profile);
     } on AppError catch (e) {
+      if (e.code == 'AUTH_REQUIRED') return _signOut();
       if (mounted) setState(() => _loadError = e);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -120,6 +128,7 @@ class _AuthGateState extends State<AuthGate> {
       profile: profile,
       profiles: widget.profiles,
       auth: widget.auth,
+      matches: widget.matches,
       onProfileChanged: _setProfile,
     );
   }

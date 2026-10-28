@@ -47,6 +47,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       );
       widget.onCompleted(profile);
     } on AppError catch (e) {
+      // Session dont l'identité n'existe plus : retour à l'écran de connexion.
+      if (e.code == 'AUTH_REQUIRED') return widget.onSignOut();
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _busy = false);

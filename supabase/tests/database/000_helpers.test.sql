@@ -35,6 +35,32 @@ begin
 end;
 $$;
 
+-- Inscrit directement un utilisateur à un match (préparation des données de test).
+create or replace function tests.add_participant(p_match_id uuid, p_user_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into public.participations (match_id, user_id) values (p_match_id, p_user_id);
+$$;
+
+-- Saisie de match valide, à compléter ou surcharger avec `||`.
+create or replace function tests.match_input(p_overrides jsonb default '{}')
+returns jsonb
+language sql
+as $$
+  select jsonb_build_object(
+    'title', 'Foot du dimanche',
+    'starts_at', now() + interval '2 days',
+    'duration_minutes', 90,
+    'capacity', 10,
+    'format', '5v5',
+    'location_mode', 'to_define',
+    'location_name', 'Secteur centre-ville'
+  ) || p_overrides;
+$$;
+
 -- À appeler en tant que postgres : simule une requête API de cet utilisateur
 -- jusqu'à la fin de la transaction ou au prochain `reset role`.
 create or replace function tests.authenticate_as(p_user_id uuid)

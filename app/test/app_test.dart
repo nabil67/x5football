@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:x5football/app.dart';
 import 'package:x5football/config/app_config.dart';
 import 'package:x5football/data/app_error.dart';
@@ -19,12 +20,19 @@ Future<void> _pumpApp(
   FakeProfileRepository profiles,
 ) async {
   await tester.pumpWidget(
-    X5FootballApp(config: _config, auth: auth, profiles: profiles),
+    X5FootballApp(
+      config: _config,
+      auth: auth,
+      profiles: profiles,
+      matches: FakeMatchRepository(),
+    ),
   );
   await tester.pumpAndSettle();
 }
 
 void main() {
+  setUpAll(() => initializeDateFormatting('fr_FR'));
+
   group('connexion', () {
     testWidgets('un utilisateur déconnecté voit l\'écran de connexion', (
       tester,
@@ -117,7 +125,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(profiles.calls, ['complete:Nabil:true']);
-      expect(find.text('Bonjour Nabil !'), findsOneWidget);
+      expect(find.text('Créer un match'), findsOneWidget);
     });
 
     testWidgets('un nom trop court est refusé avant l\'envoi', (tester) async {
@@ -150,6 +158,24 @@ void main() {
 
       expect(find.text('Réservé aux 18 ans et plus.'), findsOneWidget);
     });
+
+    testWidgets('une session expirée ramène à l\'écran de connexion', (
+      tester,
+    ) async {
+      final auth = FakeAuthRepository(signedIn: true);
+      final profiles = FakeProfileRepository()
+        ..completeError = const AppError('AUTH_REQUIRED', 'Reconnectez-vous.');
+      await _pumpApp(tester, auth, profiles);
+
+      await tester.enterText(find.byType(TextFormField), 'Nabil');
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      await tester.tap(find.text('Continuer'));
+      await tester.pumpAndSettle();
+
+      expect(auth.calls, ['signOut']);
+      expect(find.text('Recevoir un code'), findsOneWidget);
+    });
   });
 
   group('compte', () {
@@ -166,7 +192,7 @@ void main() {
       await _pumpApp(tester, FakeAuthRepository(signedIn: true), profiles);
 
       expect(find.text('Votre compte est suspendu.'), findsOneWidget);
-      expect(find.textContaining('Bonjour'), findsNothing);
+      expect(find.text('Créer un match'), findsNothing);
     });
 
     Future<void> openProfile(
