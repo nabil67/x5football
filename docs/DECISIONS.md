@@ -11,14 +11,19 @@
 | 2026-10-28 | Position de recherche de l'utilisateur jamais stockée (paramètre de requête uniquement) | Confidentialité de la localisation. |
 | 2026-10-28 | Rappels : une ligne `notifications` par participant, envoyée par une tâche `pg_cron` + Edge Function | Annulation fine à la désinscription, idempotence, planification serveur. |
 | 2026-10-28 | Configuration client via `--dart-define-from-file=env/<env>.json` (non versionné) | Pas de secret versionné ; l'app refuse une clé secrète. |
+| 2026-10-28 | Âge : attestation « J'ai 18 ans ou plus » horodatée (`users.age_confirmed_at`), sans date de naissance | Collecte minimale ; validée par le porteur du projet. |
+| 2026-10-28 | Connexion par code à usage unique : e-mail d'abord, WhatsApp ensuite | Pas de mot de passe à gérer. WhatsApp exige un fournisseur (Twilio…) et un expéditeur validé par Meta. |
+| 2026-10-28 | Suppression de compte : blocage immédiat (`pending_deletion`), purge horaire par `pg_cron` qui supprime l'identité `auth.users` (le profil suit par cascade) | Droit à l'effacement, exigence des boutiques. Délai de grâce paramétrable (0 par défaut). |
+| 2026-10-28 | Erreurs métier des RPC : SQLSTATE `PTxxx` (statut HTTP xxx), `message` = code stable, `hint` = texte affichable | Codes explicites exploitables par l'interface (cf. docs/API.md). |
 | 2026-10-28 | Identifiant technique : `x5football`, bundle `fr.x5football.x5football` | Provisoire, à remplacer avec le nom final. |
 
 ## Décisions ouvertes
 
 | Sujet | Options / proposition | Nécessaire avant |
 |---|---|---|
-| Vérification d'âge | Proposition : attestation « J'ai 18 ans ou plus » horodatée, sans date de naissance | Étape 2 |
-| Méthode de connexion | E-mail + code OTP, e-mail + mot de passe, Apple/Google | Étape 2 |
+| Connexion WhatsApp | Fournisseur (Twilio Verify, MessageBird…), compte Meta Business, coût par message | Avant l'ajout de WhatsApp |
+| Délai de grâce avant purge d'un compte supprimé | 0 (immédiat) aujourd'hui ; à aligner sur la politique de conservation | Publication |
+| Expéditeur e-mail de production (SMTP) | Resend, Postmark, Brevo, SendGrid… (le SMTP intégré de Supabase est limité à quelques e-mails/heure) | Bêta |
 | Cartographie / géocodage | Mapbox, Google Maps Platform, OpenStreetMap (Geoapify, Nominatim auto-hébergé…) | Étape 4 |
 | Fournisseur push | Proposition : Firebase Cloud Messaging (Android + iOS via APNs) | Étape 6 |
 | Délai d'expiration d'un transfert | Proposition : 48 h, configurable côté serveur | Étape 6 |
