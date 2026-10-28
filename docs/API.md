@@ -98,3 +98,38 @@ Authorization: Bearer <jeton utilisateur>
 | `GEOCODER_UNAVAILABLE` | 503 | Fournisseur injoignable. |
 
 L'application ouvre un terrain dans Google Maps (application ou navigateur) via le lien universel `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>`, sans clé ni compte.
+
+## Transfert d'organisation
+
+| Opération | Appel | Règles |
+|---|---|---|
+| Proposer | `rpc/propose_transfer(p_match_id, p_to_user_id)` → `uuid` | Organisateur actuel, match ouvert et pas commencé, cible = participant actif (compte actif), une seule proposition en attente par match. Validité : 48 h, et au plus tard le coup d'envoi. |
+| Retirer | `rpc/cancel_transfer(p_match_id)` | Organisateur actuel. |
+| Répondre | `rpc/respond_transfer(p_transfer_id, p_accept boolean)` | Uniquement le participant ciblé. À l'acceptation, il devient organisateur ; l'ancien organisateur reste inscrit comme joueur. |
+| Consulter | `GET /rest/v1/transfer_details?match_id=eq.<id>&status=eq.pending` | Visible des deux personnes concernées uniquement. |
+
+Annulation automatique d'une proposition en attente : la personne ciblée quitte le match, le match est annulé. Une tâche planifiée (toutes les 15 min) passe les propositions échues en `expired` et prévient l'organisateur. Les RPC verrouillent la ligne du match puis celle de la proposition : une acceptation et un retrait simultanés ne peuvent pas aboutir tous les deux.
+
+| Code métier | HTTP | Signification |
+|---|---|---|
+| `INVALID_TRANSFER_TARGET` | 400 | Cible absente ou soi-même. |
+| `TRANSFER_TARGET_NOT_PARTICIPANT` | 409 | La cible n'est pas inscrite (ou son compte est inactif). |
+| `TRANSFER_ALREADY_PENDING` | 409 | Une proposition est déjà en attente. |
+| `TRANSFER_NOT_FOUND` | 404 | Proposition inexistante ou adressée à quelqu'un d'autre. |
+| `TRANSFER_NOT_PENDING` | 409 | Déjà acceptée, refusée, retirée, ou situation changée. |
+| `TRANSFER_EXPIRED` | 409 | Proposition échue ou match commencé / plus ouvert. |
+
+## Notifications
+
+`GET /rest/v1/notifications` : notifications de l'utilisateur dont la date (`scheduled_for`) est atteinte, avec `type`, `title`, `body` (rédigés en français par le serveur), `match_id`, `read_at`. `rpc/mark_notifications_read()` marque tout comme lu. Aucune écriture directe.
+
+| Type | Destinataire | Déclencheur |
+|---|---|---|
+| `transfer_proposed` | Participant ciblé | Proposition de transfert. |
+| `transfer_accepted`, `transfer_declined`, `transfer_expired` | Organisateur qui a proposé | Réponse ou expiration. |
+| `transfer_cancelled` | L'autre partie | Retrait par l'organisateur, ou départ de la personne ciblée. |
+| `match_cancelled` | Participants (hors organisateur) | Annulation du match. |
+| `match_updated` | Participants (hors organisateur) | Changement d'horaire, de durée ou de lieu (pas du titre). |
+| `match_reminder` | Chaque participant | 24 h avant le début, seulement si ce moment est encore à venir ; supprimé à la désinscription ou à l'annulation, replanifié si l'horaire change. |
+
+Notifications push (Firebase Cloud Messaging) : à venir, à partir de cette même table.

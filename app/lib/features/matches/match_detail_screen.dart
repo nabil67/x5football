@@ -5,9 +5,11 @@ import '../../data/geocoding_repository.dart';
 import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
 import '../../models/match.dart';
+import '../../models/transfer.dart';
 import '../../ui/formatters.dart';
 import '../../ui/maps_launcher.dart';
 import 'match_form_screen.dart';
+import 'transfer_section.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   const MatchDetailScreen({
@@ -30,15 +32,38 @@ class MatchDetailScreen extends StatefulWidget {
 }
 
 class _MatchDetailScreenState extends State<MatchDetailScreen> {
-  late Future<(Match, List<Participant>)> _future = _load();
+  late Future<_DetailData> _future = _load();
   bool _busy = false;
 
-  Future<(Match, List<Participant>)> _load() async {
+  Future<_DetailData> _load() async {
     final results = await Future.wait([
       widget.matches.getMatch(widget.matchId),
       widget.matches.listParticipants(widget.matchId),
+      widget.matches.pendingTransfer(widget.matchId),
     ]);
-    return (results[0] as Match, results[1] as List<Participant>);
+    return (
+      match: results[0] as Match,
+      participants: results[1] as List<Participant>,
+      transfer: results[2] as Transfer?,
+    );
+  }
+
+  /// Exécute une action, affiche son résultat puis recharge l'écran dans tous les cas :
+  /// un refus du serveur (match complet, proposition expirée…) signale un écran périmé.
+  Future<void> _run(Future<void> Function() action, String success) async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(success)));
+    } on AppError catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _reload();
+      }
+    }
   }
 
   void _reload() => setState(() {
@@ -70,97 +95,112 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     }
   }
 
-  Future<void> _join() async {
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await widget.matches.joinMatch(widget.matchId);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Vous êtes inscrit. Bon match !')),
-      );
-    } on AppError catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      // Rechargé dans tous les cas : un refus (complet, annulé…) signale un écran périmé.
-      if (mounted) {
-        setState(() => _busy = false);
-        _reload();
-      }
-    }
-  }
-
-  Future<void> _leave() async {
+  Future<bool> _confirm({
+    required String title,
+    required String content,
+    required String cancelLabel,
+    required String confirmLabel,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Quitter ce match ?'),
-        content: const Text('Votre place sera libérée pour un autre joueur.'),
+        title: Text(title),
+        content: Text(content),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Rester inscrit'),
+            child: Text(cancelLabel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Quitter le match'),
+            child: Text(confirmLabel),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    return confirmed == true && mounted;
+  }
 
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await widget.matches.leaveMatch(widget.matchId);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Vous avez quitté le match.')),
-      );
-    } on AppError catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-        _reload();
-      }
+  Future<void> _join() => _run(
+    () => widget.matches.joinMatch(widget.matchId),
+    'Vous êtes inscrit. Bon match !',
+  );
+
+  Future<void> _leave() async {
+    if (!await _confirm(
+      title: 'Quitter ce match ?',
+      content: 'Votre place sera libérée pour un autre joueur.',
+      cancelLabel: 'Rester inscrit',
+      confirmLabel: 'Quitter le match',
+    )) {
+      return;
     }
+    await _run(
+      () => widget.matches.leaveMatch(widget.matchId),
+      'Vous avez quitté le match.',
+    );
   }
 
   Future<void> _cancel() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler ce match ?'),
-        content: const Text(
+    if (!await _confirm(
+      title: 'Annuler ce match ?',
+      content:
           'Les inscriptions seront fermées et le match apparaîtra comme annulé '
           'pour tous les participants.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Retour'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Annuler le match'),
-          ),
+      cancelLabel: 'Retour',
+      confirmLabel: 'Annuler le match',
+    )) {
+      return;
+    }
+    await _run(
+      () => widget.matches.cancelMatch(widget.matchId),
+      'Match annulé.',
+    );
+  }
+
+  Future<void> _proposeTransfer(List<Participant> participants) async {
+    final candidates = participants.where((p) => !p.isOrganizer).toList();
+    final target = await showDialog<Participant>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('À qui transmettre l\'organisation ?'),
+        children: [
+          for (final p in candidates)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, p),
+              child: Text(p.displayName),
+            ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await widget.matches.cancelMatch(widget.matchId);
-      messenger.showSnackBar(const SnackBar(content: Text('Match annulé.')));
-      _reload();
-    } on AppError catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      if (mounted) setState(() => _busy = false);
+    if (target == null || !mounted) return;
+    if (!await _confirm(
+      title: 'Proposer à ${target.displayName} ?',
+      content:
+          '${target.displayName} deviendra organisateur s\'il accepte. '
+          'Vous resterez inscrit comme joueur. La proposition expire après '
+          '48 h, et au plus tard au début du match.',
+      cancelLabel: 'Retour',
+      confirmLabel: 'Envoyer la proposition',
+    )) {
+      return;
     }
+    await _run(
+      () => widget.matches.proposeTransfer(widget.matchId, target.userId),
+      'Proposition envoyée à ${target.displayName}.',
+    );
   }
+
+  Future<void> _cancelTransfer() => _run(
+    () => widget.matches.cancelTransfer(widget.matchId),
+    'Proposition retirée.',
+  );
+
+  Future<void> _respondTransfer(Transfer transfer, {required bool accept}) =>
+      _run(
+        () => widget.matches.respondTransfer(transfer.id, accept: accept),
+        accept ? 'Vous organisez désormais ce match.' : 'Proposition refusée.',
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -191,16 +231,21 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
               ),
             );
           }
-          final (match, participants) = snapshot.data!;
+          final (:match, :participants, :transfer) = snapshot.data!;
           return _MatchDetails(
             match: match,
             participants: participants,
+            transfer: transfer,
             busy: _busy,
             onEdit: () => _edit(match),
             onCancel: _cancel,
             onJoin: _join,
             onLeave: _leave,
             onOpenInMaps: () => _openInMaps(match),
+            onProposeTransfer: () => _proposeTransfer(participants),
+            onCancelTransfer: _cancelTransfer,
+            onRespondTransfer: (accept) =>
+                _respondTransfer(transfer!, accept: accept),
           );
         },
       ),
@@ -212,22 +257,30 @@ class _MatchDetails extends StatelessWidget {
   const _MatchDetails({
     required this.match,
     required this.participants,
+    required this.transfer,
     required this.busy,
     required this.onEdit,
     required this.onCancel,
     required this.onJoin,
     required this.onLeave,
     required this.onOpenInMaps,
+    required this.onProposeTransfer,
+    required this.onCancelTransfer,
+    required this.onRespondTransfer,
   });
 
   final Match match;
   final List<Participant> participants;
+  final Transfer? transfer;
   final bool busy;
   final VoidCallback onEdit;
   final VoidCallback onCancel;
   final VoidCallback onJoin;
   final VoidCallback onLeave;
   final VoidCallback onOpenInMaps;
+  final VoidCallback onProposeTransfer;
+  final VoidCallback onCancelTransfer;
+  final ValueChanged<bool> onRespondTransfer;
 
   @override
   Widget build(BuildContext context) {
@@ -336,6 +389,16 @@ class _MatchDetails extends StatelessWidget {
             ],
           ),
         ],
+        if (match.isEditable)
+          TransferSection(
+            match: match,
+            transfer: transfer,
+            hasCandidates: participants.any((p) => !p.isOrganizer),
+            busy: busy,
+            onPropose: onProposeTransfer,
+            onCancel: onCancelTransfer,
+            onRespond: onRespondTransfer,
+          ),
         const SizedBox(height: 24),
         Text('Participants', style: theme.textTheme.titleMedium),
         for (final p in participants)
@@ -373,3 +436,9 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+
+typedef _DetailData = ({
+  Match match,
+  List<Participant> participants,
+  Transfer? transfer,
+});

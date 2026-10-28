@@ -5,10 +5,13 @@ import 'package:x5football/data/auth_repository.dart';
 import 'package:x5football/data/geocoding_repository.dart';
 import 'package:x5football/data/location_service.dart';
 import 'package:x5football/data/match_repository.dart';
+import 'package:x5football/data/notification_repository.dart';
+import 'package:x5football/models/app_notification.dart';
 import 'package:x5football/data/profile_repository.dart';
 import 'package:x5football/models/geo.dart';
 import 'package:x5football/models/match.dart';
 import 'package:x5football/models/profile.dart';
+import 'package:x5football/models/transfer.dart';
 
 class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository({this.signedIn = false});
@@ -148,6 +151,26 @@ class FakeMatchRepository implements MatchRepository {
     calls.add('leave:$id');
     if (participationError != null) throw participationError!;
   }
+
+  /// Proposition en attente renvoyée pour tout match.
+  Transfer? transfer;
+
+  @override
+  Future<Transfer?> pendingTransfer(String matchId) async => transfer;
+
+  @override
+  Future<void> proposeTransfer(String matchId, String toUserId) async =>
+      calls.add('propose:$matchId:$toUserId');
+
+  @override
+  Future<void> cancelTransfer(String matchId) async =>
+      calls.add('cancelTransfer:$matchId');
+
+  @override
+  Future<void> respondTransfer(
+    String transferId, {
+    required bool accept,
+  }) async => calls.add('respond:$transferId:$accept');
 }
 
 Match fakeMatch({
@@ -215,3 +238,44 @@ class FakeGeocodingRepository implements GeocodingRepository {
     return places;
   }
 }
+
+class FakeNotificationRepository implements NotificationRepository {
+  FakeNotificationRepository({List<AppNotification>? items})
+    : items = items ?? [];
+
+  List<AppNotification> items;
+  int markAllReadCalls = 0;
+
+  @override
+  Future<List<AppNotification>> list() async => items;
+
+  @override
+  Future<int> unreadCount() async => items.where((n) => !n.isRead).length;
+
+  @override
+  Future<void> markAllRead() async {
+    markAllReadCalls++;
+    items = [
+      for (final n in items)
+        AppNotification(
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          body: n.body,
+          matchId: n.matchId,
+          date: n.date,
+          isRead: true,
+        ),
+    ];
+  }
+}
+
+Transfer fakeTransfer({String? fromName = 'Orga', String? toName = 'Alice'}) =>
+    Transfer(
+      id: 't1',
+      matchId: 'm1',
+      toUserId: 'alice',
+      fromName: fromName,
+      toName: toName,
+      expiresAt: DateTime(2026, 10, 30, 10),
+    );

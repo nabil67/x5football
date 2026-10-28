@@ -4,8 +4,10 @@ import '../../data/app_error.dart';
 import '../../data/geocoding_repository.dart';
 import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
+import '../../data/notification_repository.dart';
 import '../../models/match.dart';
 import '../../ui/formatters.dart';
+import '../notifications/notifications_screen.dart';
 import 'match_detail_screen.dart';
 import 'match_form_screen.dart';
 import 'nearby_matches_view.dart';
@@ -17,12 +19,14 @@ class MatchListScreen extends StatefulWidget {
     required this.matches,
     required this.geocoding,
     required this.location,
+    required this.notifications,
     required this.profileButton,
   });
 
   final MatchRepository matches;
   final GeocodingRepository geocoding;
   final LocationService location;
+  final NotificationRepository notifications;
 
   /// Accès au profil, fourni par l'écran parent.
   final Widget profileButton;
@@ -31,11 +35,55 @@ class MatchListScreen extends StatefulWidget {
   State<MatchListScreen> createState() => _MatchListScreenState();
 }
 
-class _MatchListScreenState extends State<MatchListScreen> {
+class _MatchListScreenState extends State<MatchListScreen>
+    with WidgetsBindingObserver {
   // Change à chaque retour d'un match pour recharger les deux onglets.
   int _refreshToken = 0;
+  int _unread = 0;
 
-  void _refresh() => setState(() => _refreshToken++);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadUnread();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadUnread();
+  }
+
+  Future<void> _loadUnread() async {
+    try {
+      final count = await widget.notifications.unreadCount();
+      if (mounted) setState(() => _unread = count);
+    } on AppError {
+      // Compteur indicatif : une erreur réseau ne doit pas gêner l'accueil.
+    }
+  }
+
+  void _refresh() {
+    setState(() => _refreshToken++);
+    _loadUnread();
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NotificationsScreen(
+          notifications: widget.notifications,
+          onOpenMatch: _openMatch,
+        ),
+      ),
+    );
+    _loadUnread();
+  }
 
   Future<void> _openMatch(String id) async {
     await Navigator.of(context).push(
@@ -71,7 +119,20 @@ class _MatchListScreenState extends State<MatchListScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('x5football'),
-          actions: [widget.profileButton],
+          actions: [
+            IconButton(
+              tooltip: _unread == 0
+                  ? 'Notifications'
+                  : 'Notifications, $_unread non lue${_unread > 1 ? 's' : ''}',
+              onPressed: _openNotifications,
+              icon: Badge(
+                isLabelVisible: _unread > 0,
+                label: Text(_unread > 99 ? '99+' : '$_unread'),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+            ),
+            widget.profileButton,
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'À proximité'),

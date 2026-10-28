@@ -4,7 +4,7 @@
 -- comme deux téléphones appelant l'API en même temps. Les données de départ doivent donc
 -- être validées (commit) : elles sont créées puis supprimées par une connexion annexe.
 begin;
-select plan(4);
+select plan(6);
 
 create extension if not exists dblink with schema extensions;
 
@@ -115,6 +115,41 @@ select is(
   (select count(*)::int from unnest(array['race_a', 'race_b']) c where pg_temp.wait_for(c) like '%ALREADY_JOINED%'),
   1,
   'deux demandes simultanées de la même personne : une seule inscription'
+);
+
+-- Transfert : la personne ciblée accepte pendant que l'organisateur retire la proposition.
+select extensions.dblink_exec(c, 'rollback') from unnest(array['race_a', 'race_b']) c;
+select extensions.dblink_exec('setup', format(
+  $$begin; select tests.authenticate_as(%L); select public.propose_transfer(%L, %L); commit;$$,
+  (select id from auth.users where email = 'race-orga@test.local'),
+  :'race_match',
+  (select id from auth.users where email = 'race-a@test.local')));
+select id as race_transfer from extensions.dblink('setup',
+  format($$select id from public.organizer_transfers where match_id = %L and status = 'pending'$$, :'race_match')
+) as t(id uuid) \gset
+
+select extensions.dblink_send_query('race_a', format(
+  'begin; select tests.authenticate_as(%L); select public.respond_transfer(%L, true); select pg_sleep(0.3); commit;',
+  (select id from auth.users where email = 'race-a@test.local'), :'race_transfer'));
+select extensions.dblink_send_query('race_b', format(
+  'begin; select tests.authenticate_as(%L); select public.cancel_transfer(%L); select pg_sleep(0.3); commit;',
+  (select id from auth.users where email = 'race-orga@test.local'), :'race_match'));
+
+create temporary table transfer_race as
+select c as conn, pg_temp.wait_for(c) as error from unnest(array['race_a', 'race_b']) c;
+
+select is((select count(*)::int from transfer_race where error = 'OK'), 1,
+  'acceptation et retrait simultanés : une seule des deux actions aboutit');
+
+select ok(
+  (select (t.status = 'accepted' and m.organizer = t.to_user)
+       or (t.status = 'cancelled' and m.organizer = t.from_user)
+   from extensions.dblink('setup', format(
+     $$select t.status::text, t.from_user_id, t.to_user_id, m.organizer_id
+       from public.organizer_transfers t join public.matches m on m.id = t.match_id where t.id = %L$$,
+     :'race_transfer')) as t(status text, from_user uuid, to_user uuid, organizer uuid)
+   cross join lateral (select t.organizer) m),
+  'l''état final est cohérent : organisateur et proposition concordent'
 );
 
 select extensions.dblink_disconnect(c) from unnest(array['race_a', 'race_b', 'race_c']) c;

@@ -8,6 +8,7 @@ import 'data/auth_repository.dart';
 import 'data/geocoding_repository.dart';
 import 'data/location_service.dart';
 import 'data/match_repository.dart';
+import 'data/notification_repository.dart';
 import 'data/profile_repository.dart';
 
 Future<void> main() async {
@@ -29,6 +30,7 @@ Future<void> main() async {
       matches: SupabaseMatchRepository(client),
       geocoding: SupabaseGeocodingRepository(client),
       location: GeolocatorLocationService(),
+      notifications: SupabaseNotificationRepository(client),
     ),
   );
 }

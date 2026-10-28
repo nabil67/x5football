@@ -7,6 +7,7 @@ import '../../data/auth_repository.dart';
 import '../../data/geocoding_repository.dart';
 import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
+import '../../data/notification_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../models/profile.dart';
 import '../home/home_screen.dart';
@@ -22,6 +23,7 @@ class AuthGate extends StatefulWidget {
     required this.matches,
     required this.geocoding,
     required this.location,
+    required this.notifications,
   });
 
   final AuthRepository auth;
@@ -29,6 +31,7 @@ class AuthGate extends StatefulWidget {
   final MatchRepository matches;
   final GeocodingRepository geocoding;
   final LocationService location;
+  final NotificationRepository notifications;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -137,6 +140,7 @@ class _AuthGateState extends State<AuthGate> {
       matches: widget.matches,
       geocoding: widget.geocoding,
       location: widget.location,
+      notifications: widget.notifications,
       onProfileChanged: _setProfile,
     );
   }

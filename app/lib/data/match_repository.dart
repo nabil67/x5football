@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/geo.dart';
 import '../models/match.dart';
+import '../models/transfer.dart';
 import 'app_error.dart';
 
 abstract interface class MatchRepository {
@@ -27,6 +28,18 @@ abstract interface class MatchRepository {
 
   /// Libère la place de l'utilisateur (impossible pour l'organisateur).
   Future<void> leaveMatch(String id);
+
+  /// Proposition de transfert en attente pour ce match, si l'utilisateur en est partie prenante.
+  Future<Transfer?> pendingTransfer(String matchId);
+
+  /// L'organisateur propose à un participant de reprendre le match.
+  Future<void> proposeTransfer(String matchId, String toUserId);
+
+  /// L'organisateur retire sa proposition en attente.
+  Future<void> cancelTransfer(String matchId);
+
+  /// Le participant ciblé accepte ou refuse.
+  Future<void> respondTransfer(String transferId, {required bool accept});
 }
 
 class SupabaseMatchRepository implements MatchRepository {
@@ -110,6 +123,39 @@ class SupabaseMatchRepository implements MatchRepository {
   @override
   Future<void> leaveMatch(String id) =>
       _guard(() => _client.rpc('leave_match', params: {'p_match_id': id}));
+
+  @override
+  Future<Transfer?> pendingTransfer(String matchId) => _guard(() async {
+    final row = await _client
+        .from('transfer_details')
+        .select()
+        .eq('match_id', matchId)
+        .eq('status', 'pending')
+        .maybeSingle();
+    return row == null ? null : Transfer.fromJson(row);
+  });
+
+  @override
+  Future<void> proposeTransfer(String matchId, String toUserId) => _guard(
+    () => _client.rpc(
+      'propose_transfer',
+      params: {'p_match_id': matchId, 'p_to_user_id': toUserId},
+    ),
+  );
+
+  @override
+  Future<void> cancelTransfer(String matchId) => _guard(
+    () => _client.rpc('cancel_transfer', params: {'p_match_id': matchId}),
+  );
+
+  @override
+  Future<void> respondTransfer(String transferId, {required bool accept}) =>
+      _guard(
+        () => _client.rpc(
+          'respond_transfer',
+          params: {'p_transfer_id': transferId, 'p_accept': accept},
+        ),
+      );
 
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {

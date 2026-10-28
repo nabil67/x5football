@@ -27,6 +27,7 @@ Future<void> _pumpApp(
       matches: FakeMatchRepository(),
       geocoding: FakeGeocodingRepository(),
       location: FakeLocationService(),
+      notifications: FakeNotificationRepository(),
     ),
   );
   await tester.pumpAndSettle();

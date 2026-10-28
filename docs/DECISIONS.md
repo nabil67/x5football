@@ -28,6 +28,9 @@
 | 2026-10-28 | Recherche : rayon 10 km par défaut, choix 2/5/10/25/50/100 km (serveur : 1–100), filtres date / niveau (inclut « tous niveaux ») / places disponibles, pages de 20 | Bornes côté serveur exigées par la spécification. |
 | 2026-10-28 | Inscriptions : l'organisateur ne peut pas quitter son match (transfert ou annulation) ; réinscription possible après un départ s'il reste de la place ; départ possible jusqu'au coup d'envoi | Validé par le porteur du projet. |
 | 2026-10-28 | Test de concurrence réel : connexions simultanées via `dblink` dans pgTAP (`050_concurrency.test.sql`) | Vérifie la dernière place avec de vraies transactions parallèles ; le test échoue si le verrou est retiré. |
+| 2026-10-28 | Transfert d'organisation : proposition valable 48 h et au plus tard jusqu'au coup d'envoi ; une seule en attente par match ; l'ancien organisateur reste joueur | Validé par le porteur du projet (48 h). Durée dans `private.transfer_validity()`. |
+| 2026-10-28 | Notifications : d'abord dans l'application (table `notifications`, textes rédigés par le serveur), push FCM ensuite sur la même table | Validé par le porteur du projet ; ne bloque pas l'étape 6 en attendant le projet Firebase. |
+| 2026-10-28 | Rappel : une ligne par participant programmée à `starts_at - 24 h`, invisible avant échéance ; supprimée à la désinscription / annulation, replanifiée au changement d'horaire | Règles 15 à 17 de la spécification. |
 | 2026-10-28 | Position du téléphone demandée seulement sur action (« Autour de moi », « Ma position actuelle »), jamais en arrière-plan ni enregistrée | Confidentialité ; le GPS reste facultatif (recherche par ville). |
 
 ## Décisions ouvertes
@@ -41,8 +44,7 @@
 | Devise des coûts estimés | EUR par défaut aujourd'hui ; devise choisie par l'organisateur (liste ISO 4217) | Étape 4 ou 7 |
 | Unité de distance | km partout (actuel), ou km/miles selon la région du téléphone | Publication |
 | Contact pour Nominatim | Adresse e-mail de contact à mettre dans `GEOCODER_USER_AGENT` (exigée par les règles d'usage) | Mise en production |
-| Fournisseur push | Proposition : Firebase Cloud Messaging (Android + iOS via APNs) | Étape 6 |
-| Délai d'expiration d'un transfert | Proposition : 48 h, configurable côté serveur | Étape 6 |
+| Notifications push | Firebase Cloud Messaging retenu ; nécessite un projet Firebase créé par le porteur du projet (gratuit) | Quand le projet Firebase est prêt |
 | Versions minimales Android / iOS | Défauts Flutter actuels | Publication |
 | Build iOS | Mac, ou CI macOS (Codemagic, GitHub Actions) + compte Apple Developer | Tests iOS |
 | Politique de confidentialité, CGU, conservation des données | — | Publication |

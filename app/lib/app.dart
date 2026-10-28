@@ -6,6 +6,7 @@ import 'data/auth_repository.dart';
 import 'data/geocoding_repository.dart';
 import 'data/location_service.dart';
 import 'data/match_repository.dart';
+import 'data/notification_repository.dart';
 import 'data/profile_repository.dart';
 import 'features/auth/auth_gate.dart';
 
@@ -18,6 +19,7 @@ class X5FootballApp extends StatelessWidget {
     required this.matches,
     required this.geocoding,
     required this.location,
+    required this.notifications,
   });
 
   final AppConfig config;
@@ -26,6 +28,7 @@ class X5FootballApp extends StatelessWidget {
   final MatchRepository matches;
   final GeocodingRepository geocoding;
   final LocationService location;
+  final NotificationRepository notifications;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +47,7 @@ class X5FootballApp extends StatelessWidget {
         matches: matches,
         geocoding: geocoding,
         location: location,
+        notifications: notifications,
       ),
     );
   }
