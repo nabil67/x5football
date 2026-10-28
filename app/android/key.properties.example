@@ -1,0 +1,6 @@
+# Copier en key.properties (ignoré par git) et renseigner. Ne jamais versionner la clé ni ce fichier rempli.
+# Création de la clé : voir docs/BETA.md.
+storeFile=C:/Users/<vous>/cles/x5football-upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=

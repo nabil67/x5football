@@ -121,6 +121,7 @@ void main() {
             geocoding: geocoding,
             location: location,
             notifications: FakeNotificationRepository(),
+            moderation: FakeModerationRepository(),
             profileButton: const SizedBox(),
           ),
         ),
@@ -248,6 +249,7 @@ void main() {
           geocoding: FakeGeocodingRepository(),
           location: FakeLocationService(),
           notifications: FakeNotificationRepository(),
+          moderation: FakeModerationRepository(),
           profileButton: const SizedBox(),
         ),
       ),
@@ -279,6 +281,7 @@ void main() {
         _wrap(
           MatchDetailScreen(
             matchId: 'm1',
+            moderation: FakeModerationRepository(),
             matches: repo,
             geocoding: FakeGeocodingRepository(),
             location: FakeLocationService(),

@@ -6,6 +6,7 @@ import 'data/auth_repository.dart';
 import 'data/geocoding_repository.dart';
 import 'data/location_service.dart';
 import 'data/match_repository.dart';
+import 'data/moderation_repository.dart';
 import 'data/notification_repository.dart';
 import 'data/profile_repository.dart';
 import 'features/auth/auth_gate.dart';
@@ -22,6 +23,7 @@ class X5FootballApp extends StatelessWidget {
     required this.geocoding,
     required this.location,
     required this.notifications,
+    required this.moderation,
     this.avatarResolver,
   });
 
@@ -32,6 +34,7 @@ class X5FootballApp extends StatelessWidget {
   final GeocodingRepository geocoding;
   final LocationService location;
   final NotificationRepository notifications;
+  final ModerationRepository moderation;
 
   /// Accès aux photos de profil ; absent dans les tests (initiales affichées).
   final AvatarResolver? avatarResolver;
@@ -57,6 +60,7 @@ class X5FootballApp extends StatelessWidget {
         geocoding: geocoding,
         location: location,
         notifications: notifications,
+        moderation: moderation,
       ),
     );
   }

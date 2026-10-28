@@ -62,6 +62,6 @@ jobs:
         with:
           deno-version: v2.x
       - name: Vérification des types
-        run: deno check supabase/functions/geocode/index.ts
+        run: deno check supabase/functions/*/index.ts
       - name: Tests
         run: deno test supabase/functions

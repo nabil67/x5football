@@ -35,6 +35,13 @@
 | 2026-10-28 | Accessibilité vérifiée par tests automatiques (zones tactiles Android/iOS, libellés, contrastes) en clair et en sombre, et absence de débordement avec un texte agrandi à 200 % | Exigence de l'étape 7 ; tout nouvel écran doit être ajouté à `test/accessibility_test.dart`. |
 | 2026-10-28 | Photo de profil facultative : bucket privé `avatars` (1 Mo, JPEG/PNG/WebP), écriture dans son seul dossier, lecture par les connectés ; `avatar_url` = chemin du fichier, jamais une URL externe ; photo réduite à 512 px sur le téléphone | Validé par le porteur du projet. Évite le pistage par image et les fichiers lourds. |
 | 2026-10-28 | Données de démonstration locales dans `supabase/seed.sql` (rejouées par `supabase db reset`, jamais en production) | Confort de développement et de test sur émulateur. |
+| 2026-10-28 | Blocage : la personne bloquée ne peut plus rejoindre les matchs de celle qui bloque, qui ne voit plus ses matchs ; la personne bloquée n'est pas informée (refus `JOIN_NOT_ALLOWED` neutre) | Validé par le porteur du projet. |
+| 2026-10-28 | Limites anti-abus : 10 créations de match/24 h, 30 inscriptions ou désinscriptions/h, 10 signalements/24 h (fenêtres glissantes, actions réussies seulement) | Validé par le porteur du projet ; valeurs dans les RPC concernées. |
+| 2026-10-28 | Signalements examinés par un administrateur dans Supabase Studio, sans écran de modération ni sanction automatique | Validé par le porteur du projet ; procédure dans `docs/BETA.md`. |
+| 2026-10-28 | Photos des comptes supprimés : file d'attente alimentée à la purge, Edge Function `purge-avatars` appelée chaque heure par pg_cron (secret partagé dans Vault et dans les secrets des fonctions) | La base interdit la suppression directe des fichiers ; garantit l'effacement même si l'application n'a pas pu le faire. |
+| 2026-10-28 | Intégration continue GitHub Actions sur le dépôt privé `nabil67/x5football` : application, base (migrations depuis une base vide + pgTAP), Edge Functions | Validé par le porteur du projet ; aucun secret nécessaire. |
+| 2026-10-28 | Audit de sécurité automatique (`110_security_audit`) : RLS partout, aucun accès anonyme, aucune écriture directe hors nom/photo, `search_path` fixé, aucune colonne e-mail ni position exposée | S'applique à toute nouvelle table ou fonction. |
+| 2026-10-28 | Signature Android de publication via `app/android/key.properties` (non versionné) ; sans ce fichier, signature de debug | Clé jamais dans le dépôt ; procédure dans `docs/BETA.md`. |
 | 2026-10-28 | Position du téléphone demandée seulement sur action (« Autour de moi », « Ma position actuelle »), jamais en arrière-plan ni enregistrée | Confidentialité ; le GPS reste facultatif (recherche par ville). |
 
 ## Décisions ouvertes
@@ -53,5 +60,3 @@
 | Build iOS | Mac, ou CI macOS (Codemagic, GitHub Actions) + compte Apple Developer | Tests iOS |
 | Politique de confidentialité, CGU, conservation des données | — | Publication |
 | Nom, identité visuelle, textes finaux | Vert provisoire en place ; couleur de marque modifiable en un seul endroit (`brandSeed`) | Publication |
-| Suppression garantie des photos à la purge d'un compte | Aujourd'hui : suppression par l'application avant la demande de suppression (meilleur effort). Proposition : tâche serveur (Edge Function planifiée) qui supprime les fichiers via l'API Storage, la base interdisant la suppression directe | Étape 8 |
-| Signaler / bloquer un utilisateur | Spécification § 4.9 | Étape 8 (validé) |

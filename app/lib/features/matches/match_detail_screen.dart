@@ -4,6 +4,7 @@ import '../../data/app_error.dart';
 import '../../data/geocoding_repository.dart';
 import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
+import '../../data/moderation_repository.dart';
 import '../../models/match.dart';
 import '../../models/transfer.dart';
 import '../../ui/formatters.dart';
@@ -11,6 +12,7 @@ import '../../ui/maps_launcher.dart';
 import '../../ui/states.dart';
 import '../../ui/user_avatar.dart';
 import 'match_list_screen.dart' show StatusBadge;
+import '../moderation/report_sheet.dart';
 import 'match_form_screen.dart';
 import 'transfer_section.dart';
 
@@ -21,6 +23,7 @@ class MatchDetailScreen extends StatefulWidget {
     required this.matches,
     required this.geocoding,
     required this.location,
+    required this.moderation,
     this.openUrl = openExternalUrl,
   });
 
@@ -28,6 +31,7 @@ class MatchDetailScreen extends StatefulWidget {
   final MatchRepository matches;
   final GeocodingRepository geocoding;
   final LocationService location;
+  final ModerationRepository moderation;
   final OpenExternalUrl openUrl;
 
   @override
@@ -194,6 +198,31 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     );
   }
 
+  Future<void> _reportUser(Participant p) => showReportSheet(
+    context,
+    moderation: widget.moderation,
+    targetLabel: p.displayName,
+    userId: p.userId,
+  );
+
+  Future<void> _blockUser(Participant p) async {
+    if (!await _confirm(
+      title: 'Bloquer ${p.displayName} ?',
+      content:
+          '${p.displayName} ne pourra plus rejoindre les matchs que vous organisez, '
+          'et vous ne verrez plus les siens dans vos recherches. '
+          'Il n\x27en sera pas informé. Vous pourrez le débloquer depuis votre profil.',
+      cancelLabel: 'Retour',
+      confirmLabel: 'Bloquer',
+    )) {
+      return;
+    }
+    await _run(
+      () => widget.moderation.block(p.userId),
+      '${p.displayName} est bloqué.',
+    );
+  }
+
   Future<void> _cancelTransfer() => _run(
     () => widget.matches.cancelTransfer(widget.matchId),
     'Proposition retirée.',
@@ -208,7 +237,36 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Match')),
+      appBar: AppBar(
+        title: const Text('Match'),
+        actions: [
+          // Signaler le match : proposé à tous sauf à son organisateur.
+          FutureBuilder(
+            future: _future,
+            builder: (context, snapshot) {
+              final match = snapshot.data?.match;
+              if (match == null || match.isOrganizer) {
+                return const SizedBox.shrink();
+              }
+              return PopupMenuButton<String>(
+                tooltip: 'Plus d\x27options',
+                onSelected: (_) => showReportSheet(
+                  context,
+                  moderation: widget.moderation,
+                  targetLabel: 'ce match',
+                  matchId: match.id,
+                ),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'report',
+                    child: Text('Signaler ce match'),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder(
         future: _future,
         builder: (context, snapshot) {
@@ -235,6 +293,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
             onCancelTransfer: _cancelTransfer,
             onRespondTransfer: (accept) =>
                 _respondTransfer(transfer!, accept: accept),
+            onReportUser: _reportUser,
+            onBlockUser: _blockUser,
           );
         },
       ),
@@ -256,6 +316,8 @@ class _MatchDetails extends StatelessWidget {
     required this.onProposeTransfer,
     required this.onCancelTransfer,
     required this.onRespondTransfer,
+    required this.onReportUser,
+    required this.onBlockUser,
   });
 
   final Match match;
@@ -270,6 +332,8 @@ class _MatchDetails extends StatelessWidget {
   final VoidCallback onProposeTransfer;
   final VoidCallback onCancelTransfer;
   final ValueChanged<bool> onRespondTransfer;
+  final ValueChanged<Participant> onReportUser;
+  final ValueChanged<Participant> onBlockUser;
 
   @override
   Widget build(BuildContext context) {
@@ -399,6 +463,17 @@ class _MatchDetails extends StatelessWidget {
             leading: UserAvatar(name: p.displayName, path: p.avatarUrl),
             title: Text(p.displayName),
             subtitle: p.isOrganizer ? const Text('Organisateur') : null,
+            trailing: p.isMe
+                ? null
+                : PopupMenuButton<String>(
+                    tooltip: 'Options pour ${p.displayName}',
+                    onSelected: (action) =>
+                        action == 'block' ? onBlockUser(p) : onReportUser(p),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'report', child: Text('Signaler')),
+                      PopupMenuItem(value: 'block', child: Text('Bloquer')),
+                    ],
+                  ),
           ),
       ],
     );

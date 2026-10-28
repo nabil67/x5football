@@ -11,10 +11,12 @@ import 'package:x5football/features/auth/sign_in_screen.dart';
 import 'package:x5football/features/matches/match_detail_screen.dart';
 import 'package:x5football/features/matches/match_form_screen.dart';
 import 'package:x5football/features/matches/match_list_screen.dart';
+import 'package:x5football/features/moderation/blocked_users_screen.dart';
 import 'package:x5football/features/notifications/notifications_screen.dart';
 import 'package:x5football/features/profile/profile_screen.dart';
 import 'package:x5football/models/app_notification.dart';
 import 'package:x5football/models/match.dart';
+import 'package:x5football/models/moderation.dart';
 import 'package:x5football/models/profile.dart';
 import 'package:x5football/ui/image_pick.dart';
 import 'package:x5football/ui/states.dart';
@@ -65,10 +67,12 @@ final Map<String, Widget Function()> _screens = {
     geocoding: FakeGeocodingRepository(),
     location: FakeLocationService(),
     notifications: FakeNotificationRepository(),
+    moderation: FakeModerationRepository(),
     profileButton: const SizedBox(),
   ),
   'détail joueur': () => MatchDetailScreen(
     matchId: 'm1',
+    moderation: FakeModerationRepository(),
     matches: FakeMatchRepository(
       nearby: [fakeMatch(isParticipant: true, estimatedCostPerPlayer: 5)],
       participants: _participants,
@@ -78,6 +82,7 @@ final Map<String, Widget Function()> _screens = {
   ),
   'détail organisateur': () => MatchDetailScreen(
     matchId: 'm1',
+    moderation: FakeModerationRepository(),
     matches: FakeMatchRepository(
       nearby: [fakeMatch(isOrganizer: true)],
       participants: _participants,
@@ -106,7 +111,13 @@ final Map<String, Widget Function()> _screens = {
     ),
     onOpenMatch: (_) {},
   ),
+  'joueurs bloqués': () => BlockedUsersScreen(
+    moderation: FakeModerationRepository(
+      blocked: const [BlockedUser(userId: 'b', displayName: 'Bruno')],
+    ),
+  ),
   'profil': () => ProfileScreen(
+    moderation: FakeModerationRepository(),
     profile: const Profile(id: 'me', displayName: 'Nabil'),
     profiles: FakeProfileRepository(
       profile: const Profile(id: 'me', displayName: 'Nabil'),
@@ -169,6 +180,7 @@ void main() {
             geocoding: FakeGeocodingRepository(),
             location: FakeLocationService(),
             notifications: FakeNotificationRepository(),
+            moderation: FakeModerationRepository(),
             profileButton: const SizedBox(),
           ),
           textScale: textScale,
@@ -264,6 +276,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           ProfileScreen(
+            moderation: FakeModerationRepository(),
             profile: profile,
             profiles: profiles,
             auth: FakeAuthRepository(signedIn: true),

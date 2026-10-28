@@ -4,6 +4,7 @@ import '../../data/auth_repository.dart';
 import '../../data/geocoding_repository.dart';
 import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
+import '../../data/moderation_repository.dart';
 import '../../data/notification_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../models/profile.dart';
@@ -20,6 +21,7 @@ class HomeScreen extends StatelessWidget {
     required this.geocoding,
     required this.location,
     required this.notifications,
+    required this.moderation,
     required this.onProfileChanged,
   });
 
@@ -30,6 +32,7 @@ class HomeScreen extends StatelessWidget {
   final GeocodingRepository geocoding;
   final LocationService location;
   final NotificationRepository notifications;
+  final ModerationRepository moderation;
   final ValueChanged<Profile> onProfileChanged;
 
   @override
@@ -39,6 +42,7 @@ class HomeScreen extends StatelessWidget {
       geocoding: geocoding,
       location: location,
       notifications: notifications,
+      moderation: moderation,
       profileButton: IconButton(
         icon: const Icon(Icons.account_circle),
         tooltip: 'Mon profil',
@@ -49,6 +53,7 @@ class HomeScreen extends StatelessWidget {
               profiles: profiles,
               auth: auth,
               onProfileChanged: onProfileChanged,
+              moderation: moderation,
             ),
           ),
         ),

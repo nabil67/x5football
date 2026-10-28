@@ -133,3 +133,32 @@ Annulation automatique d'une proposition en attente : la personne ciblée quitte
 | `match_reminder` | Chaque participant | 24 h avant le début, seulement si ce moment est encore à venir ; supprimé à la désinscription ou à l'annulation, replanifié si l'horaire change. |
 
 Notifications push (Firebase Cloud Messaging) : à venir, à partir de cette même table.
+
+## Signalements et blocages
+
+| Opération | Appel | Règles |
+|---|---|---|
+| Signaler | `rpc/report(p_reason, p_user_id?, p_match_id?, p_comment?)` | Un joueur **ou** un match. Motifs : `inappropriate_behavior`, `harassment`, `spam`, `fake_match`, `dangerous`, `other`. Commentaire ≤ 1000 caractères. Un doublon encore ouvert est ignoré sans erreur. Impossible de se signaler soi-même ou son propre match. 10 par jour. |
+| Bloquer / débloquer | `rpc/block_user(p_user_id)`, `rpc/unblock_user(p_user_id)` | La personne bloquée ne peut plus rejoindre vos matchs (`JOIN_NOT_ALLOWED`, sans mention du blocage) ; ses matchs disparaissent de vos recherches. Elle n'est pas informée. |
+| Mes blocages | `GET /rest/v1/my_blocks` | Visible de la seule personne qui bloque. |
+
+Les signalements (`public.reports`) ne sont lisibles par aucun utilisateur : ils sont traités par
+un administrateur dans Supabase Studio (`docs/BETA.md`, section 7).
+
+## Limites anti-abus
+
+| Action | Limite | Code |
+|---|---|---|
+| Créer un match | 10 par 24 h glissantes | `RATE_LIMITED` (429) |
+| Rejoindre ou quitter un match | 30 par heure (cumulés) | `RATE_LIMITED` (429) |
+| Signaler | 10 par 24 h | `RATE_LIMITED` (429) |
+| Rechercher une adresse | 30 par heure, 1/s au total | `GEOCODE_RATE_LIMITED`, `GEOCODE_BUSY` (429) |
+| Recevoir un code de connexion | 1 e-mail par minute | Limite Supabase Auth |
+
+Seules les actions réussies comptent (une action refusée est annulée avec sa transaction).
+
+## Maintenance (serveur uniquement)
+
+`rpc/claim_storage_cleanup` et `rpc/complete_storage_cleanup` : réservées au rôle `service_role`,
+utilisées par l'Edge Function `purge-avatars` (appelée par pg_cron, authentifiée par l'en-tête
+`x-cleanup-secret`) pour supprimer les photos des comptes purgés.

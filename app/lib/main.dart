@@ -8,6 +8,7 @@ import 'data/auth_repository.dart';
 import 'data/geocoding_repository.dart';
 import 'data/location_service.dart';
 import 'data/match_repository.dart';
+import 'data/moderation_repository.dart';
 import 'data/notification_repository.dart';
 import 'data/profile_repository.dart';
 
@@ -31,6 +32,7 @@ Future<void> main() async {
       geocoding: SupabaseGeocodingRepository(client),
       location: GeolocatorLocationService(),
       notifications: SupabaseNotificationRepository(client),
+      moderation: SupabaseModerationRepository(client),
       // Bucket privé : chaque photo est demandée avec le jeton de la session en cours.
       avatarResolver: (path) => NetworkImage(
         '${config.supabaseUrl}/storage/v1/object/authenticated/avatars/$path',

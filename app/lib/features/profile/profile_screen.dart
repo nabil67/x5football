@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../data/app_error.dart';
 import '../../data/auth_repository.dart';
+import '../../data/moderation_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../models/profile.dart';
 import '../../ui/image_pick.dart';
+import '../moderation/blocked_users_screen.dart';
 import '../../ui/user_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class ProfileScreen extends StatefulWidget {
     required this.profiles,
     required this.auth,
     required this.onProfileChanged,
+    required this.moderation,
     this.pickImage = pickImageWithPlugin,
   });
 
@@ -21,6 +24,7 @@ class ProfileScreen extends StatefulWidget {
   final ProfileRepository profiles;
   final AuthRepository auth;
   final ValueChanged<Profile> onProfileChanged;
+  final ModerationRepository moderation;
   final PickImage pickImage;
 
   @override
@@ -206,6 +210,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               FilledButton(
                 onPressed: _busy ? null : _save,
                 child: const Text('Enregistrer'),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.block),
+                title: const Text('Joueurs bloqués'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        BlockedUsersScreen(moderation: widget.moderation),
+                  ),
+                ),
               ),
               const SizedBox(height: 32),
               OutlinedButton(

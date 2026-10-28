@@ -183,6 +183,7 @@ class Participant {
     required this.displayName,
     required this.isOrganizer,
     this.avatarUrl,
+    this.isMe = false,
   });
 
   factory Participant.fromJson(Map<String, dynamic> json) => Participant(
@@ -190,10 +191,14 @@ class Participant {
     displayName: json['display_name'] as String,
     avatarUrl: json['avatar_url'] as String?,
     isOrganizer: json['is_organizer'] as bool,
+    isMe: json['is_me'] as bool? ?? false,
   );
 
   final String userId;
   final String displayName;
   final String? avatarUrl;
   final bool isOrganizer;
+
+  /// Ligne de l'utilisateur connecté.
+  final bool isMe;
 }

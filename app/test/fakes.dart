@@ -6,11 +6,13 @@ import 'package:x5football/data/auth_repository.dart';
 import 'package:x5football/data/geocoding_repository.dart';
 import 'package:x5football/data/location_service.dart';
 import 'package:x5football/data/match_repository.dart';
+import 'package:x5football/data/moderation_repository.dart';
 import 'package:x5football/data/notification_repository.dart';
 import 'package:x5football/models/app_notification.dart';
 import 'package:x5football/data/profile_repository.dart';
 import 'package:x5football/models/geo.dart';
 import 'package:x5football/models/match.dart';
+import 'package:x5football/models/moderation.dart';
 import 'package:x5football/models/profile.dart';
 import 'package:x5football/models/transfer.dart';
 
@@ -299,3 +301,35 @@ Transfer fakeTransfer({String? fromName = 'Orga', String? toName = 'Alice'}) =>
       toName: toName,
       expiresAt: DateTime(2026, 10, 30, 10),
     );
+
+class FakeModerationRepository implements ModerationRepository {
+  FakeModerationRepository({List<BlockedUser>? blocked})
+    : blocked = blocked ?? [];
+
+  List<BlockedUser> blocked;
+  final calls = <String>[];
+  AppError? reportError;
+
+  @override
+  Future<void> report({
+    required ReportReason reason,
+    String? userId,
+    String? matchId,
+    String? comment,
+  }) async {
+    calls.add('report:${reason.code}:${userId ?? matchId}:${comment ?? ''}');
+    if (reportError != null) throw reportError!;
+  }
+
+  @override
+  Future<void> block(String userId) async => calls.add('block:$userId');
+
+  @override
+  Future<void> unblock(String userId) async {
+    calls.add('unblock:$userId');
+    blocked = blocked.where((b) => b.userId != userId).toList();
+  }
+
+  @override
+  Future<List<BlockedUser>> listBlocked() async => blocked;
+}

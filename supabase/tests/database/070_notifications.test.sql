@@ -1,6 +1,6 @@
 -- Notifications dans l'application et rappels 24 h avant le match.
 begin;
-select plan(17);
+select plan(18);
 
 select tests.create_user('orga@test.local', 'Orga') as orga \gset
 select tests.create_user('a@test.local', 'Alice') as alice \gset
@@ -35,6 +35,18 @@ select public.leave_match(:'m');
 reset role;
 select is((select count(*)::int from public.notifications where match_id = :'m' and user_id = :'bruno' and type = 'match_reminder'), 0,
   'la désinscription supprime le rappel');
+
+-- Tentatives répétées : réinscription puis nouvelle programmation forcée.
+select tests.authenticate_as(:'bruno');
+select public.join_match(:'m');
+reset role;
+select private.schedule_reminder((select m from public.matches m where id = :'m'), :'bruno');
+select private.schedule_reminder((select m from public.matches m where id = :'m'), :'bruno');
+select is((select count(*)::int from public.notifications where match_id = :'m' and user_id = :'bruno' and type = 'match_reminder'), 1,
+  'réinscription et tentatives répétées : un seul rappel, jamais de doublon');
+select tests.authenticate_as(:'bruno');
+select public.leave_match(:'m');
+reset role;
 
 select tests.authenticate_as(:'orga');
 select public.update_match(:'m', jsonb_build_object('starts_at', date_trunc('minute', now()) + interval '5 days'));

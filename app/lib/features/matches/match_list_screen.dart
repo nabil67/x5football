@@ -4,6 +4,7 @@ import '../../data/app_error.dart';
 import '../../data/geocoding_repository.dart';
 import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
+import '../../data/moderation_repository.dart';
 import '../../data/notification_repository.dart';
 import '../../models/match.dart';
 import '../../ui/formatters.dart';
@@ -21,6 +22,7 @@ class MatchListScreen extends StatefulWidget {
     required this.geocoding,
     required this.location,
     required this.notifications,
+    required this.moderation,
     required this.profileButton,
   });
 
@@ -28,6 +30,7 @@ class MatchListScreen extends StatefulWidget {
   final GeocodingRepository geocoding;
   final LocationService location;
   final NotificationRepository notifications;
+  final ModerationRepository moderation;
 
   /// Accès au profil, fourni par l'écran parent.
   final Widget profileButton;
@@ -94,6 +97,7 @@ class _MatchListScreenState extends State<MatchListScreen>
           matches: widget.matches,
           geocoding: widget.geocoding,
           location: widget.location,
+          moderation: widget.moderation,
         ),
       ),
     );

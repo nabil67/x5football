@@ -4,6 +4,12 @@ Application mobile (Android, iOS) pour trouver des personnes à proximité et or
 
 - Spécifications : [docs/SPECIFICATIONS.md](docs/SPECIFICATIONS.md)
 - Décisions prises et ouvertes : [docs/DECISIONS.md](docs/DECISIONS.md)
+- API (RPC, codes d'erreur, limites) : [docs/API.md](docs/API.md)
+- Conformité aux critères de la spécification : [docs/CONFORMITE.md](docs/CONFORMITE.md)
+- Données collectées et suppression : [docs/DONNEES.md](docs/DONNEES.md)
+- Mise en ligne de la bêta et modération : [docs/BETA.md](docs/BETA.md)
+
+Intégration continue : GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) rejoue tous les tests à chaque envoi sur `main`.
 
 ## Prérequis
 
