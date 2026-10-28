@@ -362,6 +362,89 @@ void main() {
       expect(find.text('Annulé'), findsOneWidget);
       expect(find.text('Modifier'), findsNothing);
       expect(find.textContaining('libre'), findsNothing);
+      expect(find.text('Rejoindre le match'), findsNothing);
+    });
+
+    group('inscription', () {
+      testWidgets('rejoindre un match ouvert', (tester) async {
+        final repo = FakeMatchRepository(nearby: [fakeMatch()]);
+        await pumpDetail(tester, repo);
+
+        await tester.tap(find.text('Rejoindre le match'));
+        await tester.pumpAndSettle();
+
+        expect(repo.calls, ['join:m1']);
+        expect(find.text('Vous êtes inscrit. Bon match !'), findsOneWidget);
+      });
+
+      testWidgets('refus du serveur affiché (dernière place prise)', (
+        tester,
+      ) async {
+        final repo = FakeMatchRepository(nearby: [fakeMatch()])
+          ..participationError = const AppError(
+            'MATCH_FULL',
+            'Ce match est complet.',
+          );
+        await pumpDetail(tester, repo);
+
+        await tester.tap(find.text('Rejoindre le match'));
+        await tester.pumpAndSettle();
+        expect(find.text('Ce match est complet.'), findsOneWidget);
+      });
+
+      testWidgets('match complet : inscription impossible', (tester) async {
+        await pumpDetail(
+          tester,
+          FakeMatchRepository(
+            nearby: [
+              fakeMatch(
+                capacity: 10,
+                participantCount: 10,
+                displayStatus: MatchDisplayStatus.full,
+              ),
+            ],
+          ),
+        );
+        final button = find.widgetWithText(FilledButton, 'Match complet');
+        expect(tester.widget<FilledButton>(button).onPressed, isNull);
+        expect(find.text('Rejoindre le match'), findsNothing);
+      });
+
+      testWidgets('quitter un match après confirmation', (tester) async {
+        final repo = FakeMatchRepository(
+          nearby: [fakeMatch(isParticipant: true)],
+        );
+        await pumpDetail(tester, repo);
+        expect(find.text('Vous êtes inscrit à ce match.'), findsOneWidget);
+
+        await tester.tap(
+          find.widgetWithText(OutlinedButton, 'Quitter le match'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Rester inscrit'));
+        await tester.pumpAndSettle();
+        expect(repo.calls, isEmpty);
+
+        await tester.tap(
+          find.widgetWithText(OutlinedButton, 'Quitter le match'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Quitter le match'));
+        await tester.pumpAndSettle();
+        expect(repo.calls, ['leave:m1']);
+        expect(find.text('Vous avez quitté le match.'), findsOneWidget);
+      });
+
+      testWidgets('l\'organisateur ne peut ni rejoindre ni quitter', (
+        tester,
+      ) async {
+        await pumpDetail(
+          tester,
+          FakeMatchRepository(nearby: [fakeMatch(isOrganizer: true)]),
+        );
+        expect(find.text('Rejoindre le match'), findsNothing);
+        expect(find.text('Quitter le match'), findsNothing);
+      });
     });
   });
 

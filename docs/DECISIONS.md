@@ -26,6 +26,8 @@
 | 2026-10-28 | Solution gratuite, sans carte dans l'application : liste triée par distance + bouton « Ouvrir dans Maps » (lien universel Google Maps, sans clé) | Validé par le porteur du projet (« libre à l'utilisateur d'aller chercher l'adresse dans Google Maps »). |
 | 2026-10-28 | Recherche d'adresses : OpenStreetMap Nominatim via l'Edge Function `geocode` (quota 30/h/personne, 1/s au total, cache 24 h) | Gratuit, mondial, sans clé. Au-delà d'un usage modéré, prévoir une instance auto-hébergée ou un fournisseur payant (interface `GeocodingRepository` remplaçable). |
 | 2026-10-28 | Recherche : rayon 10 km par défaut, choix 2/5/10/25/50/100 km (serveur : 1–100), filtres date / niveau (inclut « tous niveaux ») / places disponibles, pages de 20 | Bornes côté serveur exigées par la spécification. |
+| 2026-10-28 | Inscriptions : l'organisateur ne peut pas quitter son match (transfert ou annulation) ; réinscription possible après un départ s'il reste de la place ; départ possible jusqu'au coup d'envoi | Validé par le porteur du projet. |
+| 2026-10-28 | Test de concurrence réel : connexions simultanées via `dblink` dans pgTAP (`050_concurrency.test.sql`) | Vérifie la dernière place avec de vraies transactions parallèles ; le test échoue si le verrou est retiré. |
 | 2026-10-28 | Position du téléphone demandée seulement sur action (« Autour de moi », « Ma position actuelle »), jamais en arrière-plan ni enregistrée | Confidentialité ; le GPS reste facultatif (recherche par ville). |
 
 ## Décisions ouvertes

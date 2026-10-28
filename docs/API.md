@@ -52,6 +52,8 @@ Le statut du compte, l'attestation d'âge et les dates ne sont jamais modifiable
 | Créer | `rpc/create_match(p_match jsonb)` → `uuid` | Compte actif. L'organisateur est inscrit dans la même transaction. |
 | Modifier | `rpc/update_match(p_match_id, p_changes jsonb)` | Organisateur actuel, match ouvert et pas encore commencé. Seuls les champs présents changent. |
 | Annuler | `rpc/cancel_match(p_match_id)` | Mêmes conditions. Les inscriptions restent visibles, aucune nouvelle n'est possible. |
+| Rejoindre | `rpc/join_match(p_match_id)` | Compte actif, match ouvert, pas encore commencé, place disponible, pas déjà inscrit. Ligne du match verrouillée : deux demandes simultanées pour la dernière place ne peuvent pas réussir toutes les deux. Réinscription possible après un départ. |
+| Quitter | `rpc/leave_match(p_match_id)` | Inscrit actif, jusqu'au coup d'envoi. Interdit à l'organisateur (transfert ou annulation). La désinscription reste visible de la seule personne concernée. |
 
 Champs acceptés dans `p_match` / `p_changes` (tout autre champ → `UNKNOWN_FIELD`) : `title`, `description`, `starts_at`, `duration_minutes`, `capacity`, `format` (`5v5`, `7v7`, `11v11`), `skill_level` (`all`, `beginner`, `intermediate`, `advanced`), `location_name` (obligatoire), `latitude`, `longitude` (obligatoires), `estimated_total_cost`, `estimated_cost_per_player`, `currency`.
 
@@ -69,6 +71,10 @@ Champs acceptés dans `p_match` / `p_changes` (tout autre champ → `UNKNOWN_FIE
 | `MATCH_NOT_EDITABLE`, `MATCH_ALREADY_STARTED` | 409 | Match annulé / terminé, ou déjà commencé. |
 | `CAPACITY_BELOW_PARTICIPANTS` | 409 | Capacité inférieure au nombre d'inscrits actifs. |
 | `INVALID_RADIUS`, `INVALID_PAGINATION` | 400 | Rayon ou pagination de recherche hors limites. |
+| `MATCH_FULL` | 409 | Plus aucune place. |
+| `ALREADY_JOINED`, `NOT_PARTICIPANT` | 409 | Déjà inscrit ; ou pas inscrit (quitter). |
+| `MATCH_CANCELLED`, `MATCH_COMPLETED` | 409 | Match annulé ou terminé (rejoindre / quitter). |
+| `ORGANIZER_CANNOT_LEAVE` | 409 | L'organisateur doit transmettre l'organisation ou annuler. |
 
 ## Recherche d'adresses
 

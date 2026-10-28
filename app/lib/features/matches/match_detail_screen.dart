@@ -70,6 +70,62 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     }
   }
 
+  Future<void> _join() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.matches.joinMatch(widget.matchId);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Vous êtes inscrit. Bon match !')),
+      );
+    } on AppError catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      // Rechargé dans tous les cas : un refus (complet, annulé…) signale un écran périmé.
+      if (mounted) {
+        setState(() => _busy = false);
+        _reload();
+      }
+    }
+  }
+
+  Future<void> _leave() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Quitter ce match ?'),
+        content: const Text('Votre place sera libérée pour un autre joueur.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Rester inscrit'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Quitter le match'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.matches.leaveMatch(widget.matchId);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Vous avez quitté le match.')),
+      );
+    } on AppError catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _reload();
+      }
+    }
+  }
+
   Future<void> _cancel() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -142,6 +198,8 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
             busy: _busy,
             onEdit: () => _edit(match),
             onCancel: _cancel,
+            onJoin: _join,
+            onLeave: _leave,
             onOpenInMaps: () => _openInMaps(match),
           );
         },
@@ -157,6 +215,8 @@ class _MatchDetails extends StatelessWidget {
     required this.busy,
     required this.onEdit,
     required this.onCancel,
+    required this.onJoin,
+    required this.onLeave,
     required this.onOpenInMaps,
   });
 
@@ -165,6 +225,8 @@ class _MatchDetails extends StatelessWidget {
   final bool busy;
   final VoidCallback onEdit;
   final VoidCallback onCancel;
+  final VoidCallback onJoin;
+  final VoidCallback onLeave;
   final VoidCallback onOpenInMaps;
 
   @override
@@ -226,6 +288,28 @@ class _MatchDetails extends StatelessWidget {
         if (match.description != null) ...[
           const SizedBox(height: 12),
           Text(match.description!),
+        ],
+        if (!match.isOrganizer && match.isEditable) ...[
+          const SizedBox(height: 16),
+          if (match.isParticipant) ...[
+            Text(
+              'Vous êtes inscrit à ce match.',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: busy ? null : onLeave,
+              icon: const Icon(Icons.logout),
+              label: const Text('Quitter le match'),
+            ),
+          ] else if (match.displayStatus == MatchDisplayStatus.open)
+            FilledButton.icon(
+              onPressed: busy ? null : onJoin,
+              icon: const Icon(Icons.how_to_reg),
+              label: const Text('Rejoindre le match'),
+            )
+          else
+            const FilledButton(onPressed: null, child: Text('Match complet')),
         ],
         if (match.isOrganizer && match.isEditable) ...[
           const SizedBox(height: 16),

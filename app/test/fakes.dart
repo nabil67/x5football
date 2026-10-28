@@ -133,6 +133,21 @@ class FakeMatchRepository implements MatchRepository {
 
   @override
   Future<void> cancelMatch(String id) async => calls.add('cancel:$id');
+
+  /// Erreur levée par la prochaine inscription ou désinscription, le cas échéant.
+  AppError? participationError;
+
+  @override
+  Future<void> joinMatch(String id) async {
+    calls.add('join:$id');
+    if (participationError != null) throw participationError!;
+  }
+
+  @override
+  Future<void> leaveMatch(String id) async {
+    calls.add('leave:$id');
+    if (participationError != null) throw participationError!;
+  }
 }
 
 Match fakeMatch({

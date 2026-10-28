@@ -21,6 +21,12 @@ abstract interface class MatchRepository {
   Future<void> updateMatch(String id, MatchInput input);
 
   Future<void> cancelMatch(String id);
+
+  /// Inscrit l'utilisateur ; refusé si le match est complet, annulé, commencé ou déjà rejoint.
+  Future<void> joinMatch(String id);
+
+  /// Libère la place de l'utilisateur (impossible pour l'organisateur).
+  Future<void> leaveMatch(String id);
 }
 
 class SupabaseMatchRepository implements MatchRepository {
@@ -71,6 +77,7 @@ class SupabaseMatchRepository implements MatchRepository {
             .from('match_participants')
             .select()
             .eq('match_id', matchId)
+            .order('is_organizer', ascending: false)
             .order('joined_at');
         return rows.map(Participant.fromJson).toList();
       });
@@ -95,6 +102,14 @@ class SupabaseMatchRepository implements MatchRepository {
   @override
   Future<void> cancelMatch(String id) =>
       _guard(() => _client.rpc('cancel_match', params: {'p_match_id': id}));
+
+  @override
+  Future<void> joinMatch(String id) =>
+      _guard(() => _client.rpc('join_match', params: {'p_match_id': id}));
+
+  @override
+  Future<void> leaveMatch(String id) =>
+      _guard(() => _client.rpc('leave_match', params: {'p_match_id': id}));
 
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {
