@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_error.dart';
+import '../../data/geocoding_repository.dart';
+import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
+import '../../models/geo.dart';
 import '../../models/match.dart';
 import '../../ui/formatters.dart';
+import '../places/place_search_screen.dart';
 
 /// Création (initial == null) ou modification d'un match.
 /// En cas de succès, renvoie l'id du match via `Navigator.pop`.
@@ -12,11 +16,15 @@ class MatchFormScreen extends StatefulWidget {
   const MatchFormScreen({
     super.key,
     required this.matches,
+    required this.geocoding,
+    required this.location,
     this.initial,
     this.now,
   });
 
   final MatchRepository matches;
+  final GeocodingRepository geocoding;
+  final LocationService location;
   final Match? initial;
 
   /// Horloge injectable pour les tests.
@@ -42,12 +50,6 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
   late final _locationName = TextEditingController(
     text: widget.initial?.locationName,
   );
-  late final _latitude = TextEditingController(
-    text: widget.initial?.latitude?.toString(),
-  );
-  late final _longitude = TextEditingController(
-    text: widget.initial?.longitude?.toString(),
-  );
   late final _totalCost = TextEditingController(
     text: _costText(widget.initial?.estimatedTotalCost),
   );
@@ -59,8 +61,10 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
   late int _duration = widget.initial?.durationMinutes ?? 90;
   late MatchFormat _format = widget.initial?.format ?? MatchFormat.fiveASide;
   late SkillLevel _skill = widget.initial?.skillLevel ?? SkillLevel.all;
-  late LocationMode _locationMode =
-      widget.initial?.locationMode ?? LocationMode.toDefine;
+  late GeoPoint? _location = widget.initial?.location;
+  String? _locationLabel;
+  String? _locationError;
+  bool _locating = false;
   late bool _capacityEdited = widget.initial != null;
 
   bool _busy = false;
@@ -80,8 +84,6 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
       _description,
       _capacity,
       _locationName,
-      _latitude,
-      _longitude,
       _totalCost,
       _costPerPlayer,
     ]) {
@@ -124,6 +126,44 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
     });
   }
 
+  Future<void> _searchAddress() async {
+    final place = await Navigator.of(context).push<Place>(
+      MaterialPageRoute(
+        builder: (_) => PlaceSearchScreen(
+          geocoding: widget.geocoding,
+          title: 'Adresse du terrain',
+        ),
+      ),
+    );
+    if (place == null || !mounted) return;
+    setState(() {
+      _location = place.point;
+      _locationLabel = place.label;
+      _locationError = null;
+      if (_locationName.text.trim().isEmpty) _locationName.text = place.name;
+    });
+  }
+
+  Future<void> _useCurrentPosition() async {
+    setState(() {
+      _locating = true;
+      _locationError = null;
+    });
+    try {
+      final point = await widget.location.currentPosition();
+      if (mounted) {
+        setState(() {
+          _location = point;
+          _locationLabel = 'Position actuelle du téléphone';
+        });
+      }
+    } on AppError catch (e) {
+      if (mounted) setState(() => _locationError = e.message);
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
   static double? _parseDecimal(String text) {
     final value = text.trim().replaceAll(',', '.');
     return value.isEmpty ? null : double.tryParse(value);
@@ -140,8 +180,13 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
 
   Future<void> _submit() async {
     final formValid = _formKey.currentState!.validate();
-    setState(() => _startError = _validateStart());
-    if (!formValid || _startError != null) return;
+    setState(() {
+      _startError = _validateStart();
+      _locationError = _location == null
+          ? 'Choisissez la position du terrain.'
+          : null;
+    });
+    if (!formValid || _startError != null || _locationError != null) return;
 
     final input = MatchInput(
       title: _title.text.trim(),
@@ -153,12 +198,8 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
       capacity: int.parse(_capacity.text.trim()),
       format: _format,
       skillLevel: _skill,
-      locationMode: _locationMode,
-      locationName: _locationName.text.trim().isEmpty
-          ? null
-          : _locationName.text.trim(),
-      latitude: _parseDecimal(_latitude.text),
-      longitude: _parseDecimal(_longitude.text),
+      locationName: _locationName.text.trim(),
+      location: _location!,
       estimatedTotalCost: _parseDecimal(_totalCost.text),
       estimatedCostPerPlayer: _parseDecimal(_costPerPlayer.text),
     );
@@ -287,88 +328,67 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
                 onChanged: _busy ? null : (v) => setState(() => _skill = v!),
               ),
               const SizedBox(height: 16),
-              Text('Lieu', style: theme.textTheme.labelLarge),
-              const SizedBox(height: 8),
-              SegmentedButton<LocationMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: LocationMode.toDefine,
-                    label: Text('À définir ensemble'),
-                  ),
-                  ButtonSegment(
-                    value: LocationMode.fixed,
-                    label: Text('Terrain précis'),
-                  ),
-                ],
-                selected: {_locationMode},
-                onSelectionChanged: _busy
-                    ? null
-                    : (s) => setState(() => _locationMode = s.single),
-              ),
+              Text('Terrain', style: theme.textTheme.labelLarge),
               TextFormField(
                 controller: _locationName,
-                decoration: InputDecoration(
-                  labelText: _locationMode == LocationMode.fixed
-                      ? 'Nom du terrain'
-                      : 'Secteur approximatif (facultatif)',
-                  hintText: _locationMode == LocationMode.fixed
-                      ? 'ex. City stade des Rives'
-                      : 'ex. Centre-ville',
+                decoration: const InputDecoration(
+                  labelText: 'Nom du terrain',
+                  hintText: 'ex. City stade des Rives',
                 ),
                 maxLength: 120,
                 validator: (v) {
                   final length = v?.trim().length ?? 0;
-                  if (_locationMode == LocationMode.fixed && length == 0) {
-                    return 'Indiquez le nom du terrain.';
-                  }
+                  if (length == 0) return 'Indiquez le nom du terrain.';
                   if (length == 1) return 'Au moins 2 caractères.';
                   return null;
                 },
               ),
-              if (_locationMode == LocationMode.fixed) ...[
-                // Provisoire : remplacé par la recherche d'adresse / la carte (étape 4).
-                Text(
-                  'Position GPS du terrain (saisie provisoire)',
-                  style: theme.textTheme.bodySmall,
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.place_outlined),
+                title: Text(
+                  _location == null
+                      ? 'Position du terrain non choisie'
+                      : _locationLabel ?? 'Position enregistrée',
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _latitude,
-                        decoration: const InputDecoration(
-                          labelText: 'Latitude',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
-                        ),
-                        inputFormatters: decimal,
-                        validator: (v) => _validateCoordinate(v, 90),
+                subtitle: _locationError != null
+                    ? Text(
+                        _locationError!,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      )
+                    : _location == null
+                    ? null
+                    : Text(
+                        '${_location!.latitude.toStringAsFixed(5)}, '
+                        '${_location!.longitude.toStringAsFixed(5)}',
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _longitude,
-                        decoration: const InputDecoration(
-                          labelText: 'Longitude',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
-                        ),
-                        inputFormatters: decimal,
-                        validator: (v) => _validateCoordinate(v, 180),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else
-                Text(
-                  'Le match sera affiché « Lieu à confirmer », sans position sur la carte.',
-                  style: theme.textTheme.bodySmall,
-                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _busy || _locating ? null : _searchAddress,
+                    icon: const Icon(Icons.search),
+                    label: const Text('Rechercher l\'adresse'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy || _locating ? null : _useCurrentPosition,
+                    icon: _locating
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location),
+                    label: const Text('Ma position actuelle'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Les joueurs pourront ouvrir ce lieu dans Google Maps.',
+                style: theme.textTheme.bodySmall,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Coût estimé (facultatif, aucun paiement dans l\'application)',
@@ -423,13 +443,6 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
         ),
       ),
     );
-  }
-
-  String? _validateCoordinate(String? value, double limit) {
-    final n = _parseDecimal(value ?? '');
-    if (n == null) return 'Obligatoire.';
-    if (n.abs() > limit) return 'Invalide.';
-    return null;
   }
 
   String? _validateCost(String? value) {

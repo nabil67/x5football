@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:x5football/data/app_error.dart';
 import 'package:x5football/data/auth_repository.dart';
+import 'package:x5football/data/geocoding_repository.dart';
+import 'package:x5football/data/location_service.dart';
 import 'package:x5football/data/match_repository.dart';
 import 'package:x5football/data/profile_repository.dart';
+import 'package:x5football/models/geo.dart';
 import 'package:x5football/models/match.dart';
 import 'package:x5football/models/profile.dart';
 
@@ -80,13 +83,15 @@ class FakeProfileRepository implements ProfileRepository {
 
 class FakeMatchRepository implements MatchRepository {
   FakeMatchRepository({
-    List<Match>? upcoming,
+    List<Match>? nearby,
     List<Match>? mine,
     this.participants = const [],
-  }) : upcoming = upcoming ?? [],
+  }) : nearby = nearby ?? [],
        mine = mine ?? [];
 
-  List<Match> upcoming;
+  /// Résultats renvoyés par la recherche (découpés selon limit / offset).
+  List<Match> nearby;
+  final searches = <MatchSearch>[];
   List<Match> mine;
   List<Participant> participants;
   final calls = <String>[];
@@ -94,14 +99,17 @@ class FakeMatchRepository implements MatchRepository {
   AppError? createError;
 
   @override
-  Future<List<Match>> listUpcoming() async => upcoming;
+  Future<List<Match>> searchMatches(MatchSearch search) async {
+    searches.add(search);
+    return nearby.skip(search.offset).take(search.limit).toList();
+  }
 
   @override
   Future<List<Match>> listMine() async => mine;
 
   @override
   Future<Match> getMatch(String id) async =>
-      [...upcoming, ...mine].firstWhere((m) => m.id == id);
+      [...nearby, ...mine].firstWhere((m) => m.id == id);
 
   @override
   Future<List<Participant>> listParticipants(String matchId) async =>
@@ -132,8 +140,9 @@ Match fakeMatch({
   String title = 'Foot du dimanche',
   bool isOrganizer = false,
   bool isParticipant = false,
-  LocationMode locationMode = LocationMode.toDefine,
-  String? locationName = 'Centre-ville',
+  String locationName = 'City stade des Rives',
+  double latitude = 47.39,
+  double longitude = 0.69,
   int capacity = 10,
   int participantCount = 1,
   MatchDisplayStatus displayStatus = MatchDisplayStatus.open,
@@ -150,12 +159,44 @@ Match fakeMatch({
   spotsLeft: capacity - participantCount,
   format: MatchFormat.fiveASide,
   skillLevel: SkillLevel.all,
-  locationMode: locationMode,
   locationName: locationName,
-  latitude: locationMode == LocationMode.fixed ? 47.39 : null,
-  longitude: locationMode == LocationMode.fixed ? 0.69 : null,
+  latitude: latitude,
+  longitude: longitude,
   estimatedCostPerPlayer: estimatedCostPerPlayer,
   displayStatus: displayStatus,
   isOrganizer: isOrganizer,
   isParticipant: isParticipant || isOrganizer,
 );
+
+class FakeLocationService implements LocationService {
+  FakeLocationService({
+    this.position = const GeoPoint(47.39, 0.69),
+    this.error,
+  });
+
+  GeoPoint position;
+  AppError? error;
+  int calls = 0;
+
+  @override
+  Future<GeoPoint> currentPosition() async {
+    calls++;
+    if (error != null) throw error!;
+    return position;
+  }
+}
+
+class FakeGeocodingRepository implements GeocodingRepository {
+  FakeGeocodingRepository({List<Place>? places}) : places = places ?? [];
+
+  List<Place> places;
+  AppError? error;
+  final queries = <String>[];
+
+  @override
+  Future<List<Place>> search(String query) async {
+    queries.add(query);
+    if (error != null) throw error!;
+    return places;
+  }
+}

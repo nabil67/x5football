@@ -12,6 +12,7 @@ Application mobile (Android, iOS) pour trouver des personnes à proximité et or
 | [Flutter](https://docs.flutter.dev/get-started/install) (stable) | Application mobile |
 | [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) | Backend local, migrations, tests |
 | Docker Desktop | Fait tourner Supabase en local |
+| [Deno](https://deno.com) 2 | Tests des Edge Functions |
 | Android Studio + un émulateur | Exécuter l'app Android |
 | Mac avec Xcode (ou CI macOS) | Uniquement pour compiler/tester iOS |
 
@@ -21,6 +22,7 @@ Application mobile (Android, iOS) pour trouver des personnes à proximité et or
 # 1. Backend
 supabase start          # premier lancement : télécharge les images Docker
 supabase status         # affiche l'URL de l'API et la clé « publishable »
+supabase functions serve # Edge Functions locales (recherche d'adresses), dans un autre terminal
 
 # 2. Configuration de l'app
 cp app/env/dev.example.json app/env/dev.json
@@ -39,6 +41,7 @@ Studio Supabase (interface d'administration locale) : http://127.0.0.1:54323
 
 ```sh
 supabase test db                        # tests SQL (pgTAP)
+deno test supabase/functions          # tests des Edge Functions (Deno 2)
 cd app && flutter analyze && flutter test
 ```
 

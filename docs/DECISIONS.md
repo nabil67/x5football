@@ -18,9 +18,15 @@
 | 2026-10-28 | Matchs : début au moins 15 min après la création ou la replanification, au plus 1 an ; durée 15 min – 10 h ; capacité 4 – 50 | Validé par le porteur du projet (15 min) ; bornes hautes pour éviter les valeurs aberrantes. |
 | 2026-10-28 | Niveaux : tous niveaux, débutant, intermédiaire, confirmé (`all`, `beginner`, `intermediate`, `advanced`) | Validé par le porteur du projet. |
 | 2026-10-28 | La liste des participants actifs (nom, avatar) est visible de tout utilisateur connecté | Permet de décider de rejoindre un match ; aucune donnée privée exposée. |
-| 2026-10-28 | Un match confirmé passe en `location_mode = fixed` ; un lieu à définir n'a jamais de position | Un seul invariant vérifié par contrainte SQL. |
+| 2026-10-28 | ~~Un match confirmé passe en `location_mode = fixed` ; un lieu à définir n'a jamais de position~~ (remplacé, voir « lieu toujours défini » ci-dessous) | Un seul invariant vérifié par contrainte SQL. |
 | 2026-10-28 | La demande de suppression de compte annule les matchs à venir organisés et libère les places réservées | Évite des matchs fantômes ; la purge supprime ensuite les données. |
-$1 : `x5football`, bundle `fr.x5football.x5football` | Provisoire, à remplacer avec le nom final. |
+| 2026-10-28 | Nom technique : `x5football`, bundle `fr.x5football.x5football` | Provisoire, à remplacer avec le nom final. |
+| 2026-10-28 | Couverture mondiale dès le lancement (pas de limitation à la France) | Validé par le porteur du projet. Écarte les services limités à un pays (ex. Base Adresse Nationale). |
+| 2026-10-28 | **Le lieu d'un match est toujours défini** (nom du terrain + position) ; le mode « lieu à définir ensemble » est supprimé | Décision du porteur du projet, qui remplace sur ce point la spécification (§ 4.3 « lieu à définir », règle 11). La recherche filtre par distance au terrain. |
+| 2026-10-28 | Solution gratuite, sans carte dans l'application : liste triée par distance + bouton « Ouvrir dans Maps » (lien universel Google Maps, sans clé) | Validé par le porteur du projet (« libre à l'utilisateur d'aller chercher l'adresse dans Google Maps »). |
+| 2026-10-28 | Recherche d'adresses : OpenStreetMap Nominatim via l'Edge Function `geocode` (quota 30/h/personne, 1/s au total, cache 24 h) | Gratuit, mondial, sans clé. Au-delà d'un usage modéré, prévoir une instance auto-hébergée ou un fournisseur payant (interface `GeocodingRepository` remplaçable). |
+| 2026-10-28 | Recherche : rayon 10 km par défaut, choix 2/5/10/25/50/100 km (serveur : 1–100), filtres date / niveau (inclut « tous niveaux ») / places disponibles, pages de 20 | Bornes côté serveur exigées par la spécification. |
+| 2026-10-28 | Position du téléphone demandée seulement sur action (« Autour de moi », « Ma position actuelle »), jamais en arrière-plan ni enregistrée | Confidentialité ; le GPS reste facultatif (recherche par ville). |
 
 ## Décisions ouvertes
 
@@ -29,7 +35,10 @@ $1 : `x5football`, bundle `fr.x5football.x5football` | Provisoire, à remplacer 
 | Connexion WhatsApp | Fournisseur (Twilio Verify, MessageBird…), compte Meta Business, coût par message | Avant l'ajout de WhatsApp |
 | Délai de grâce avant purge d'un compte supprimé | 0 (immédiat) aujourd'hui ; à aligner sur la politique de conservation | Publication |
 | Expéditeur e-mail de production (SMTP) | Resend, Postmark, Brevo, SendGrid… (le SMTP intégré de Supabase est limité à quelques e-mails/heure) | Bêta |
-| Cartographie / géocodage | Mapbox, Google Maps Platform, OpenStreetMap (Geoapify, Nominatim auto-hébergé…) | Étape 4 — d'ici là, la position d'un terrain précis se saisit en coordonnées GPS (provisoire) |
+| Langue(s) de l'interface | Français seul aujourd'hui ; ajout de l'anglais (structure de traduction à prévoir) | Publication |
+| Devise des coûts estimés | EUR par défaut aujourd'hui ; devise choisie par l'organisateur (liste ISO 4217) | Étape 4 ou 7 |
+| Unité de distance | km partout (actuel), ou km/miles selon la région du téléphone | Publication |
+| Contact pour Nominatim | Adresse e-mail de contact à mettre dans `GEOCODER_USER_AGENT` (exigée par les règles d'usage) | Mise en production |
 | Fournisseur push | Proposition : Firebase Cloud Messaging (Android + iOS via APNs) | Étape 6 |
 | Délai d'expiration d'un transfert | Proposition : 48 h, configurable côté serveur | Étape 6 |
 | Versions minimales Android / iOS | Défauts Flutter actuels | Publication |

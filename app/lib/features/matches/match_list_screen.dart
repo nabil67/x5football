@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_error.dart';
+import '../../data/geocoding_repository.dart';
+import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
 import '../../models/match.dart';
 import '../../ui/formatters.dart';
 import 'match_detail_screen.dart';
 import 'match_form_screen.dart';
+import 'nearby_matches_view.dart';
 
-/// Accueil : matchs à venir et matchs de l'utilisateur.
+/// Accueil : matchs à proximité et matchs de l'utilisateur.
 class MatchListScreen extends StatefulWidget {
   const MatchListScreen({
     super.key,
     required this.matches,
+    required this.geocoding,
+    required this.location,
     required this.profileButton,
   });
 
   final MatchRepository matches;
+  final GeocodingRepository geocoding;
+  final LocationService location;
 
   /// Accès au profil, fourni par l'écran parent.
   final Widget profileButton;
@@ -25,15 +32,20 @@ class MatchListScreen extends StatefulWidget {
 }
 
 class _MatchListScreenState extends State<MatchListScreen> {
-  // Change à chaque rafraîchissement pour recharger les deux onglets.
-  int _refreshKey = 0;
+  // Change à chaque retour d'un match pour recharger les deux onglets.
+  int _refreshToken = 0;
 
-  void _refresh() => setState(() => _refreshKey++);
+  void _refresh() => setState(() => _refreshToken++);
 
   Future<void> _openMatch(String id) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => MatchDetailScreen(matchId: id, matches: widget.matches),
+        builder: (_) => MatchDetailScreen(
+          matchId: id,
+          matches: widget.matches,
+          geocoding: widget.geocoding,
+          location: widget.location,
+        ),
       ),
     );
     _refresh();
@@ -42,7 +54,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
   Future<void> _createMatch() async {
     final id = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => MatchFormScreen(matches: widget.matches),
+        builder: (_) => MatchFormScreen(
+          matches: widget.matches,
+          geocoding: widget.geocoding,
+          location: widget.location,
+        ),
       ),
     );
     if (id != null) await _openMatch(id);
@@ -58,22 +74,22 @@ class _MatchListScreenState extends State<MatchListScreen> {
           actions: [widget.profileButton],
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'À venir'),
+              Tab(text: 'À proximité'),
               Tab(text: 'Mes matchs'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _MatchList(
-              key: ValueKey('upcoming-$_refreshKey'),
-              load: widget.matches.listUpcoming,
-              emptyMessage:
-                  'Aucun match à venir pour le moment.\nCréez le premier !',
+            NearbyMatchesView(
+              matches: widget.matches,
+              geocoding: widget.geocoding,
+              location: widget.location,
+              refreshToken: _refreshToken,
               onTap: _openMatch,
             ),
             _MatchList(
-              key: ValueKey('mine-$_refreshKey'),
+              key: ValueKey('mine-$_refreshToken'),
               load: widget.matches.listMine,
               emptyMessage: 'Vous ne participez à aucun match à venir.',
               onTap: _openMatch,
@@ -131,7 +147,7 @@ class _MatchListState extends State<_MatchList> {
           final message = snapshot.error is AppError
               ? (snapshot.error as AppError).message
               : AppError.genericMessage;
-          return _CenteredMessage(message: message, onRetry: _reload);
+          return CenteredMessage(message: message, onRetry: _reload);
         }
         final matches = snapshot.data!;
         return RefreshIndicator(
@@ -157,21 +173,29 @@ class _MatchListState extends State<_MatchList> {
 }
 
 class MatchTile extends StatelessWidget {
-  const MatchTile({super.key, required this.match, required this.onTap});
+  const MatchTile({
+    super.key,
+    required this.match,
+    required this.onTap,
+    this.distanceKm,
+  });
 
   final Match match;
   final ValueChanged<String> onTap;
 
+  /// Distance au point de recherche, affichée si connue.
+  final double? distanceKm;
+
   @override
   Widget build(BuildContext context) {
-    final location = match.isLocationConfirmed
-        ? match.locationName!
-        : 'Lieu à confirmer${match.locationName != null ? ' · ${match.locationName}' : ''}';
     final status = switch (match.displayStatus) {
       MatchDisplayStatus.open =>
         '${match.spotsLeft} place${match.spotsLeft > 1 ? 's' : ''} restante${match.spotsLeft > 1 ? 's' : ''}',
       final other => other.label,
     };
+    final location = distanceKm == null
+        ? match.locationName
+        : '${formatDistance(distanceKm!)} · ${match.locationName}';
     return ListTile(
       onTap: () => onTap(match.id),
       title: Text(match.title),
@@ -192,8 +216,12 @@ class MatchTile extends StatelessWidget {
   }
 }
 
-class _CenteredMessage extends StatelessWidget {
-  const _CenteredMessage({required this.message, required this.onRetry});
+class CenteredMessage extends StatelessWidget {
+  const CenteredMessage({
+    super.key,
+    required this.message,
+    required this.onRetry,
+  });
 
   final String message;
   final VoidCallback onRetry;

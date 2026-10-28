@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'config/app_config.dart';
 import 'data/auth_repository.dart';
+import 'data/geocoding_repository.dart';
+import 'data/location_service.dart';
 import 'data/match_repository.dart';
 import 'data/profile_repository.dart';
 
@@ -25,6 +27,8 @@ Future<void> main() async {
       auth: SupabaseAuthRepository(client.auth),
       profiles: SupabaseProfileRepository(client),
       matches: SupabaseMatchRepository(client),
+      geocoding: SupabaseGeocodingRepository(client),
+      location: GeolocatorLocationService(),
     ),
   );
 }

@@ -34,6 +34,38 @@ void main() {
     expect(error.code, 'OTP_INVALID');
   });
 
+  test('erreur métier d\'une Edge Function', () {
+    final error = AppError.from(
+      const FunctionException(
+        status: 429,
+        details: {
+          'code': 'GEOCODE_RATE_LIMITED',
+          'message': 'Trop de recherches d\'adresse.',
+        },
+      ),
+    );
+    expect(error.code, 'GEOCODE_RATE_LIMITED');
+    expect(error.message, 'Trop de recherches d\'adresse.');
+  });
+
+  test('refus de la passerelle (texte anglais) non affiché', () {
+    final error = AppError.from(
+      const FunctionException(
+        status: 401,
+        details: {'code': 'UNAUTHORIZED', 'message': 'Invalid JWT'},
+      ),
+    );
+    expect(error.code, 'AUTH_REQUIRED');
+    expect(error.message, contains('Reconnectez-vous'));
+  });
+
+  test('réponse inattendue d\'une Edge Function', () {
+    final error = AppError.from(
+      const FunctionException(status: 500, details: 'Internal error'),
+    );
+    expect(error.message, AppError.genericMessage);
+  });
+
   test('erreur inconnue', () {
     expect(AppError.from(StateError('boom')).message, AppError.genericMessage);
   });

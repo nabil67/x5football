@@ -34,10 +34,11 @@ select is((select participant_count from public.match_details where id = :'m1'),
   'l''organisateur est inscrit automatiquement');
 select is((select spots_left from public.match_details where id = :'m1'), 9,
   'capacité 10 : 9 places restantes');
-select is((select location_status::text from public.match_details where id = :'m1'), 'to_confirm',
-  'lieu à définir : statut « à confirmer »');
-select ok((select latitude is null and longitude is null from public.match_details where id = :'m1'),
-  'lieu à définir : aucune position inventée');
+select results_eq(
+  format('select location_name, round(latitude::numeric, 4), round(longitude::numeric, 4) from public.match_details where id = %L', :'m1'),
+  $$values ('Stade de la Vallée', 47.3941::numeric, 0.6848::numeric)$$,
+  'le terrain (nom et position) est restitué'
+);
 select is((select display_status from public.match_details where id = :'m1'), 'open', 'match ouvert');
 select ok((select is_organizer and is_participant from public.match_details where id = :'m1'),
   'l''organisateur se voit organisateur et participant');
@@ -67,30 +68,25 @@ select throws_ok(
   format('select public.create_match(tests.match_input(%L))', jsonb_build_object('starts_at', now() - interval '1 day')),
   'PT422', 'START_TOO_SOON', 'match dans le passé refusé');
 
--- Lieux
-select throws_ok($$select public.create_match(tests.match_input('{"location_mode": "fixed", "location_name": "Stade"}'))$$,
-  'PT400', 'INVALID_LOCATION', 'terrain précis sans coordonnées refusé');
-select throws_ok($$select public.create_match(tests.match_input('{"location_mode": "fixed", "location_name": null, "latitude": 47.39, "longitude": 0.69}'))$$,
-  'PT400', 'INVALID_LOCATION', 'terrain précis sans nom refusé');
-select throws_ok($$select public.create_match(tests.match_input('{"latitude": 47.39, "longitude": 0.69}'))$$,
-  'PT400', 'INVALID_LOCATION', 'lieu à définir avec coordonnées refusé');
-select throws_ok($$select public.create_match(tests.match_input('{"location_mode": "fixed", "location_name": "Stade", "latitude": 95, "longitude": 0.69}'))$$,
+-- Lieu obligatoire
+select throws_ok($$select public.create_match(tests.match_input() - 'latitude' - 'longitude')$$,
+  'PT400', 'INVALID_LOCATION', 'terrain sans position refusé');
+select throws_ok($$select public.create_match(tests.match_input('{"latitude": null, "longitude": null}'))$$,
+  'PT400', 'INVALID_LOCATION', 'position vide refusée');
+select throws_ok($$select public.create_match(tests.match_input() - 'location_name')$$,
+  'PT400', 'INVALID_LOCATION_NAME', 'terrain sans nom refusé');
+select throws_ok($$select public.create_match(tests.match_input('{"location_mode": "to_define"}'))$$,
+  'PT400', 'UNKNOWN_FIELD', 'le mode « lieu à définir » n''existe plus');
+select throws_ok($$select public.create_match(tests.match_input('{"latitude": 95}'))$$,
   'PT400', 'INVALID_COORDINATES', 'latitude hors limites refusée');
-select throws_ok($$select public.create_match(tests.match_input('{"location_mode": "fixed", "location_name": "Stade", "latitude": 47.39}'))$$,
+select throws_ok($$select public.create_match(tests.match_input('{"longitude": null}'))$$,
   'PT400', 'INVALID_COORDINATES', 'latitude sans longitude refusée');
 
-select public.create_match(tests.match_input(
-  '{"location_mode": "fixed", "location_name": "Stade de la Vallée", "latitude": 47.3941, "longitude": 0.6848, "capacity": 6}'
-)) as m2 \gset
-select results_eq(
-  format('select location_status::text, round(latitude::numeric, 4), round(longitude::numeric, 4) from public.match_details where id = %L', :'m2'),
-  $$values ('confirmed', 47.3941::numeric, 0.6848::numeric)$$,
-  'terrain précis : position confirmée et restituée'
-);
+select public.create_match(tests.match_input('{"capacity": 6}')) as m2 \gset
 
 -- Écriture directe interdite
-select throws_ok($$insert into public.matches (organizer_id, title, starts_at, duration_minutes, capacity, format, location_mode, location_status)
-  values (auth.uid(), 'Direct', now() + interval '1 day', 90, 10, '5v5', 'to_define', 'to_confirm')$$,
+select throws_ok($$insert into public.matches (organizer_id, title, starts_at, duration_minutes, capacity, format, location_name, location)
+  values (auth.uid(), 'Direct', now() + interval '1 day', 90, 10, '5v5', 'Stade', 'POINT(0.69 47.39)')$$,
   '42501', null, 'insertion directe dans matches interdite');
 select throws_ok(format('update public.matches set capacity = 4 where id = %L', :'m1'),
   '42501', null, 'modification directe d''un match interdite');
@@ -120,9 +116,12 @@ select is((select title from public.matches where id = :'m1'), 'Foot du samedi',
 select is((select format::text from public.matches where id = :'m1'), '5v5', 'les champs absents ne changent pas');
 
 select lives_ok(format('select public.update_match(%L, %L)', :'m1',
-  '{"location_mode": "fixed", "location_name": "City stade", "latitude": 47.39, "longitude": 0.69}'),
-  'le lieu peut être confirmé');
-select is((select location_status::text from public.matches where id = :'m1'), 'confirmed', 'lieu confirmé');
+  '{"location_name": "City stade", "latitude": 48.8566, "longitude": 2.3522}'),
+  'le terrain peut être changé');
+select is((select round(latitude::numeric, 4) from public.match_details where id = :'m1'), 48.8566::numeric,
+  'nouvelle position enregistrée');
+select throws_ok(format('select public.update_match(%L, %L)', :'m1', '{"latitude": null, "longitude": null}'),
+  'PT400', 'INVALID_LOCATION', 'la position ne peut pas être retirée');
 
 select throws_ok(format('select public.update_match(%L, %L)', :'m1',
   jsonb_build_object('starts_at', now() + interval '5 minutes')),

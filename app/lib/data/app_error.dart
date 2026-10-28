@@ -24,6 +24,26 @@ class AppError implements Exception {
       }
       return const AppError('SERVER_ERROR', genericMessage);
     }
+    // Edge Functions du projet : corps `{ "code": "...", "message": "..." }` en français.
+    // Les refus de la passerelle (jeton absent ou expiré) ont un texte anglais : non affiché.
+    if (error is FunctionException) {
+      if (error.status == 401) {
+        return const AppError(
+          'AUTH_REQUIRED',
+          'Votre session a expiré. Reconnectez-vous.',
+        );
+      }
+      final details = error.details;
+      if (details is Map &&
+          details['code'] is String &&
+          details['message'] is String) {
+        return AppError(
+          details['code'] as String,
+          details['message'] as String,
+        );
+      }
+      return const AppError('SERVER_ERROR', genericMessage);
+    }
     if (error is AuthException) {
       return switch (error.code) {
         'otp_expired' => const AppError(

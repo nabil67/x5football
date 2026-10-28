@@ -1,3 +1,5 @@
+import 'geo.dart';
+
 enum MatchFormat {
   fiveASide('5v5', '5 contre 5', 10),
   sevenASide('7v7', '7 contre 7', 14),
@@ -30,18 +32,6 @@ enum SkillLevel {
       values.firstWhere((l) => l.code == code);
 }
 
-enum LocationMode {
-  fixed('fixed'),
-  toDefine('to_define');
-
-  const LocationMode(this.code);
-
-  final String code;
-
-  static LocationMode fromCode(String code) =>
-      values.firstWhere((m) => m.code == code);
-}
-
 /// État affiché, calculé par le serveur (vue `match_details`).
 enum MatchDisplayStatus {
   open('open', 'Ouvert'),
@@ -72,14 +62,13 @@ class Match {
     required this.spotsLeft,
     required this.format,
     required this.skillLevel,
-    required this.locationMode,
+    required this.locationName,
+    required this.latitude,
+    required this.longitude,
     required this.displayStatus,
     required this.isOrganizer,
     required this.isParticipant,
     this.description,
-    this.locationName,
-    this.latitude,
-    this.longitude,
     this.estimatedTotalCost,
     this.estimatedCostPerPlayer,
     this.currency = 'EUR',
@@ -98,10 +87,9 @@ class Match {
     spotsLeft: json['spots_left'] as int,
     format: MatchFormat.fromCode(json['format'] as String),
     skillLevel: SkillLevel.fromCode(json['skill_level'] as String),
-    locationMode: LocationMode.fromCode(json['location_mode'] as String),
-    locationName: json['location_name'] as String?,
-    latitude: (json['latitude'] as num?)?.toDouble(),
-    longitude: (json['longitude'] as num?)?.toDouble(),
+    locationName: json['location_name'] as String,
+    latitude: (json['latitude'] as num).toDouble(),
+    longitude: (json['longitude'] as num).toDouble(),
     estimatedTotalCost: (json['estimated_total_cost'] as num?)?.toDouble(),
     estimatedCostPerPlayer: (json['estimated_cost_per_player'] as num?)
         ?.toDouble(),
@@ -127,10 +115,9 @@ class Match {
   final int spotsLeft;
   final MatchFormat format;
   final SkillLevel skillLevel;
-  final LocationMode locationMode;
-  final String? locationName;
-  final double? latitude;
-  final double? longitude;
+  final String locationName;
+  final double latitude;
+  final double longitude;
   final double? estimatedTotalCost;
   final double? estimatedCostPerPlayer;
   final String currency;
@@ -138,7 +125,7 @@ class Match {
   final bool isOrganizer;
   final bool isParticipant;
 
-  bool get isLocationConfirmed => locationMode == LocationMode.fixed;
+  GeoPoint get location => GeoPoint(latitude, longitude);
 
   /// L'organisateur ne peut modifier ou annuler qu'un match ouvert ou complet, pas encore commencé.
   bool get isEditable =>
@@ -155,11 +142,9 @@ class MatchInput {
     required this.capacity,
     required this.format,
     required this.skillLevel,
-    required this.locationMode,
+    required this.locationName,
+    required this.location,
     this.description,
-    this.locationName,
-    this.latitude,
-    this.longitude,
     this.estimatedTotalCost,
     this.estimatedCostPerPlayer,
   });
@@ -171,10 +156,8 @@ class MatchInput {
   final int capacity;
   final MatchFormat format;
   final SkillLevel skillLevel;
-  final LocationMode locationMode;
-  final String? locationName;
-  final double? latitude;
-  final double? longitude;
+  final String locationName;
+  final GeoPoint location;
   final double? estimatedTotalCost;
   final double? estimatedCostPerPlayer;
 
@@ -186,11 +169,9 @@ class MatchInput {
     'capacity': capacity,
     'format': format.code,
     'skill_level': skillLevel.code,
-    'location_mode': locationMode.code,
     'location_name': locationName,
-    // Jamais de position pour un lieu à définir.
-    'latitude': locationMode == LocationMode.fixed ? latitude : null,
-    'longitude': locationMode == LocationMode.fixed ? longitude : null,
+    'latitude': location.latitude,
+    'longitude': location.longitude,
     'estimated_total_cost': estimatedTotalCost,
     'estimated_cost_per_player': estimatedCostPerPlayer,
   };

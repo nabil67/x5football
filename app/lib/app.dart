@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'config/app_config.dart';
 import 'data/auth_repository.dart';
+import 'data/geocoding_repository.dart';
+import 'data/location_service.dart';
 import 'data/match_repository.dart';
 import 'data/profile_repository.dart';
 import 'features/auth/auth_gate.dart';
@@ -14,12 +16,16 @@ class X5FootballApp extends StatelessWidget {
     required this.auth,
     required this.profiles,
     required this.matches,
+    required this.geocoding,
+    required this.location,
   });
 
   final AppConfig config;
   final AuthRepository auth;
   final ProfileRepository profiles;
   final MatchRepository matches;
+  final GeocodingRepository geocoding;
+  final LocationService location;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +38,13 @@ class X5FootballApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: AuthGate(auth: auth, profiles: profiles, matches: matches),
+      home: AuthGate(
+        auth: auth,
+        profiles: profiles,
+        matches: matches,
+        geocoding: geocoding,
+        location: location,
+      ),
     );
   }
 }

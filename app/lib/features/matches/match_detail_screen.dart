@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_error.dart';
+import '../../data/geocoding_repository.dart';
+import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
 import '../../models/match.dart';
 import '../../ui/formatters.dart';
+import '../../ui/maps_launcher.dart';
 import 'match_form_screen.dart';
 
 class MatchDetailScreen extends StatefulWidget {
@@ -11,10 +14,16 @@ class MatchDetailScreen extends StatefulWidget {
     super.key,
     required this.matchId,
     required this.matches,
+    required this.geocoding,
+    required this.location,
+    this.openUrl = openExternalUrl,
   });
 
   final String matchId;
   final MatchRepository matches;
+  final GeocodingRepository geocoding;
+  final LocationService location;
+  final OpenExternalUrl openUrl;
 
   @override
   State<MatchDetailScreen> createState() => _MatchDetailScreenState();
@@ -39,11 +48,26 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   Future<void> _edit(Match match) async {
     final saved = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) =>
-            MatchFormScreen(matches: widget.matches, initial: match),
+        builder: (_) => MatchFormScreen(
+          matches: widget.matches,
+          geocoding: widget.geocoding,
+          location: widget.location,
+          initial: match,
+        ),
       ),
     );
     if (saved != null) _reload();
+  }
+
+  Future<void> _openInMaps(Match match) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!await widget.openUrl(mapsUri(match.location))) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir l\'application de cartes.'),
+        ),
+      );
+    }
   }
 
   Future<void> _cancel() async {
@@ -118,6 +142,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
             busy: _busy,
             onEdit: () => _edit(match),
             onCancel: _cancel,
+            onOpenInMaps: () => _openInMaps(match),
           );
         },
       ),
@@ -132,6 +157,7 @@ class _MatchDetails extends StatelessWidget {
     required this.busy,
     required this.onEdit,
     required this.onCancel,
+    required this.onOpenInMaps,
   });
 
   final Match match;
@@ -139,6 +165,7 @@ class _MatchDetails extends StatelessWidget {
   final bool busy;
   final VoidCallback onEdit;
   final VoidCallback onCancel;
+  final VoidCallback onOpenInMaps;
 
   @override
   Widget build(BuildContext context) {
@@ -163,11 +190,14 @@ class _MatchDetails extends StatelessWidget {
           icon: Icons.timer_outlined,
           text: formatDuration(match.durationMinutes),
         ),
-        _InfoRow(
-          icon: Icons.place_outlined,
-          text: match.isLocationConfirmed
-              ? match.locationName!
-              : 'Lieu à confirmer${match.locationName != null ? ' (${match.locationName})' : ''}',
+        _InfoRow(icon: Icons.place_outlined, text: match.locationName),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: onOpenInMaps,
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Ouvrir dans Maps'),
+          ),
         ),
         _InfoRow(
           icon: Icons.sports_soccer,

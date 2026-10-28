@@ -56,8 +56,9 @@ as $$
     'duration_minutes', 90,
     'capacity', 10,
     'format', '5v5',
-    'location_mode', 'to_define',
-    'location_name', 'Secteur centre-ville'
+    'location_name', 'Stade de la Vallée',
+    'latitude', 47.3941,
+    'longitude', 0.6848
   ) || p_overrides;
 $$;
 

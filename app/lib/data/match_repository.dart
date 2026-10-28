@@ -1,12 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/geo.dart';
 import '../models/match.dart';
 import 'app_error.dart';
 
 abstract interface class MatchRepository {
-  /// Matchs à venir ouverts aux inscriptions (hors annulés, terminés, commencés).
-  /// La recherche géographique arrive à l'étape 4.
-  Future<List<Match>> listUpcoming();
+  /// Matchs ouverts à venir dans un rayon autour d'un point, du plus proche au plus lointain.
+  Future<List<Match>> searchMatches(MatchSearch search);
 
   /// Matchs à venir de l'utilisateur (organisés ou rejoints), y compris annulés.
   Future<List<Match>> listMine();
@@ -31,15 +31,12 @@ class SupabaseMatchRepository implements MatchRepository {
   static const _pageSize = 50;
 
   @override
-  Future<List<Match>> listUpcoming() => _guard(() async {
-    final rows = await _client
-        .from('match_details')
-        .select()
-        .eq('status', 'open')
-        .gt('starts_at', DateTime.now().toUtc().toIso8601String())
-        .order('starts_at')
-        .limit(_pageSize);
-    return rows.map(Match.fromJson).toList();
+  Future<List<Match>> searchMatches(MatchSearch search) => _guard(() async {
+    final rows = await _client.rpc('search_matches', params: search.toParams());
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(Match.fromJson)
+        .toList();
   });
 
   @override
@@ -106,4 +103,53 @@ class SupabaseMatchRepository implements MatchRepository {
       throw AppError.from(e);
     }
   }
+}
+
+/// Critères de recherche ; le serveur applique les mêmes bornes.
+class MatchSearch {
+  const MatchSearch({
+    required this.center,
+    this.radiusKm = defaultRadiusKm,
+    this.availableOnly = false,
+    this.skillLevel,
+    this.startsBefore,
+    this.limit = pageSize,
+    this.offset = 0,
+  });
+
+  static const defaultRadiusKm = 10;
+  static const radiusChoicesKm = [2, 5, 10, 25, 50, 100];
+  static const pageSize = 20;
+
+  /// Point de recherche, jamais enregistré par le serveur.
+  final GeoPoint center;
+  final int radiusKm;
+  final bool availableOnly;
+
+  /// `null` : tous les niveaux. Un niveau inclut aussi les matchs « tous niveaux ».
+  final SkillLevel? skillLevel;
+  final DateTime? startsBefore;
+  final int limit;
+  final int offset;
+
+  MatchSearch nextPage() => MatchSearch(
+    center: center,
+    radiusKm: radiusKm,
+    availableOnly: availableOnly,
+    skillLevel: skillLevel,
+    startsBefore: startsBefore,
+    limit: limit,
+    offset: offset + limit,
+  );
+
+  Map<String, dynamic> toParams() => {
+    'p_latitude': center.latitude,
+    'p_longitude': center.longitude,
+    'p_radius_km': radiusKm,
+    'p_available_only': availableOnly,
+    'p_skill_level': skillLevel?.code,
+    'p_starts_before': startsBefore?.toUtc().toIso8601String(),
+    'p_limit': limit,
+    'p_offset': offset,
+  };
 }

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../data/app_error.dart';
 import '../../data/auth_repository.dart';
+import '../../data/geocoding_repository.dart';
+import '../../data/location_service.dart';
 import '../../data/match_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../models/profile.dart';
@@ -18,11 +20,15 @@ class AuthGate extends StatefulWidget {
     required this.auth,
     required this.profiles,
     required this.matches,
+    required this.geocoding,
+    required this.location,
   });
 
   final AuthRepository auth;
   final ProfileRepository profiles;
   final MatchRepository matches;
+  final GeocodingRepository geocoding;
+  final LocationService location;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -129,6 +135,8 @@ class _AuthGateState extends State<AuthGate> {
       profiles: widget.profiles,
       auth: widget.auth,
       matches: widget.matches,
+      geocoding: widget.geocoding,
+      location: widget.location,
       onProfileChanged: _setProfile,
     );
   }

@@ -16,3 +16,11 @@ String formatDuration(int minutes) {
 /// « 5,50 € »
 String formatCost(double amount, String currency) =>
     NumberFormat.simpleCurrency(locale: 'fr_FR', name: currency).format(amount);
+
+/// « 850 m », « 2,4 km », « 12 km »
+String formatDistance(double km) {
+  final meters = ((km * 1000) / 50).round() * 50;
+  if (meters < 1000) return '${meters < 50 ? 50 : meters} m';
+  if (km < 10) return '${NumberFormat('0.0', 'fr_FR').format(km)} km';
+  return '${km.round()} km';
+}
