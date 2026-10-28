@@ -1,0 +1,67 @@
+# Intégration continue : chaque envoi et chaque pull request rejouent tous les tests.
+# Aucun secret n'est nécessaire : la base de test est une stack Supabase locale éphémère.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Application Flutter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyse
+        run: flutter analyze
+      - name: Tests (dont accessibilité)
+        run: flutter test
+
+  database:
+    name: Base de données (migrations + pgTAP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      # Services utiles aux tests seulement : base, authentification, stockage.
+      - name: Démarrer Supabase
+        run: >
+          supabase start
+          -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,realtime,postgres-meta,supavisor
+      - name: Migrations depuis une base vide
+        run: supabase db reset
+      - name: Tests pgTAP
+        run: supabase test db
+      - name: Arrêter Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  functions:
+    name: Edge Functions (Deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Vérification des types
+        run: deno check supabase/functions/geocode/index.ts
+      - name: Tests
+        run: deno test supabase/functions
