@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../data/app_error.dart';
 import '../../data/notification_repository.dart';
 import '../../models/app_notification.dart';
 import '../../ui/formatters.dart';
+import '../../ui/states.dart';
 
 /// Liste des notifications ; à l'ouverture, toutes sont marquées comme lues.
 class NotificationsScreen extends StatefulWidget {
@@ -56,31 +56,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: CircularProgressIndicator(semanticsLabel: 'Chargement'),
-            );
+            return const LoadingList();
           }
           if (snapshot.hasError) {
-            final error = snapshot.error;
-            return Center(
-              child: TextButton(
-                onPressed: _reload,
-                child: Text(
-                  '${error is AppError ? error.message : AppError.genericMessage}\nRéessayer',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
+            return MessageView.error(snapshot.error, onRetry: _reload);
           }
           final items = snapshot.data!;
           return RefreshIndicator(
             onRefresh: _reload,
             child: items.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 120),
-                      Text('Aucune notification.', textAlign: TextAlign.center),
-                    ],
+                ? const MessageView(
+                    icon: Icons.notifications_none,
+                    message: 'Aucune notification.',
                   )
                 : ListView.separated(
                     itemCount: items.length,

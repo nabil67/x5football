@@ -66,6 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choisissez une photo de profil, visible des autres joueurs connectés.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Prenez une photo de profil, visible des autres joueurs connectés.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Votre position sert uniquement à trouver les matchs proches de vous. Elle n'est jamais enregistrée ni partagée.</string>
 </dict>

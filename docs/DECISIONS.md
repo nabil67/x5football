@@ -31,6 +31,10 @@
 | 2026-10-28 | Transfert d'organisation : proposition valable 48 h et au plus tard jusqu'au coup d'envoi ; une seule en attente par match ; l'ancien organisateur reste joueur | Validé par le porteur du projet (48 h). Durée dans `private.transfer_validity()`. |
 | 2026-10-28 | Notifications : d'abord dans l'application (table `notifications`, textes rédigés par le serveur), push FCM ensuite sur la même table | Validé par le porteur du projet ; ne bloque pas l'étape 6 en attendant le projet Firebase. |
 | 2026-10-28 | Rappel : une ligne par participant programmée à `starts_at - 24 h`, invisible avant échéance ; supprimée à la désinscription / annulation, replanifiée au changement d'horaire | Règles 15 à 17 de la spécification. |
+| 2026-10-28 | Interface : vert provisoire (`brandSeed`, `lib/ui/theme.dart`), mode sombre selon le réglage du téléphone, zones tactiles ≥ 48 dp | Validé par le porteur du projet en attendant l'identité finale. |
+| 2026-10-28 | Accessibilité vérifiée par tests automatiques (zones tactiles Android/iOS, libellés, contrastes) en clair et en sombre, et absence de débordement avec un texte agrandi à 200 % | Exigence de l'étape 7 ; tout nouvel écran doit être ajouté à `test/accessibility_test.dart`. |
+| 2026-10-28 | Photo de profil facultative : bucket privé `avatars` (1 Mo, JPEG/PNG/WebP), écriture dans son seul dossier, lecture par les connectés ; `avatar_url` = chemin du fichier, jamais une URL externe ; photo réduite à 512 px sur le téléphone | Validé par le porteur du projet. Évite le pistage par image et les fichiers lourds. |
+| 2026-10-28 | Données de démonstration locales dans `supabase/seed.sql` (rejouées par `supabase db reset`, jamais en production) | Confort de développement et de test sur émulateur. |
 | 2026-10-28 | Position du téléphone demandée seulement sur action (« Autour de moi », « Ma position actuelle »), jamais en arrière-plan ni enregistrée | Confidentialité ; le GPS reste facultatif (recherche par ville). |
 
 ## Décisions ouvertes
@@ -48,4 +52,6 @@
 | Versions minimales Android / iOS | Défauts Flutter actuels | Publication |
 | Build iOS | Mac, ou CI macOS (Codemagic, GitHub Actions) + compte Apple Developer | Tests iOS |
 | Politique de confidentialité, CGU, conservation des données | — | Publication |
-| Nom, identité visuelle, textes finaux | — | Publication |
+| Nom, identité visuelle, textes finaux | Vert provisoire en place ; couleur de marque modifiable en un seul endroit (`brandSeed`) | Publication |
+| Suppression garantie des photos à la purge d'un compte | Aujourd'hui : suppression par l'application avant la demande de suppression (meilleur effort). Proposition : tâche serveur (Edge Function planifiée) qui supprime les fichiers via l'API Storage, la base interdisant la suppression directe | Étape 8 |
+| Signaler / bloquer un utilisateur | Spécification § 4.9 | Étape 8 (validé) |

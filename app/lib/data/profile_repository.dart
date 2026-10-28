@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/profile.dart';
@@ -13,6 +15,11 @@ abstract interface class ProfileRepository {
   });
 
   Future<Profile> updateDisplayName(String displayName);
+
+  /// Remplace la photo de profil (JPEG, PNG ou WebP, 1 Mo au plus, contrôlé par le serveur).
+  Future<Profile> updateAvatar(Uint8List bytes, {required String extension});
+
+  Future<Profile> removeAvatar();
 
   /// Bloque le compte immédiatement ; la suppression effective est faite côté serveur.
   Future<void> requestAccountDeletion();
@@ -55,9 +62,76 @@ class SupabaseProfileRepository implements ProfileRepository {
     return Profile.fromJson(row);
   });
 
+  static const _bucket = 'avatars';
+
+  static const _contentTypes = {
+    'jpg': 'image/jpeg',
+    'png': 'image/png',
+    'webp': 'image/webp',
+  };
+
+  String get _uid => _client.auth.currentUser!.id;
+
+  Future<Profile> _setAvatarPath(String? path) async {
+    final row = await _client
+        .from('users')
+        .update({'avatar_url': path})
+        .eq('id', _uid)
+        .select(_columns)
+        .single();
+    return Profile.fromJson(row);
+  }
+
+  /// Supprime les fichiers du dossier personnel, sauf [keep].
+  Future<void> _removeAvatarFiles({String? keep}) async {
+    final storage = _client.storage.from(_bucket);
+    final files = await storage.list(path: _uid);
+    final paths = [
+      for (final f in files)
+        if ('$_uid/${f.name}' != keep) '$_uid/${f.name}',
+    ];
+    if (paths.isNotEmpty) await storage.remove(paths);
+  }
+
   @override
-  Future<void> requestAccountDeletion() =>
-      _guard(() => _client.rpc('request_account_deletion'));
+  Future<Profile> updateAvatar(Uint8List bytes, {required String extension}) =>
+      _guard(() async {
+        final contentType = _contentTypes[extension];
+        if (contentType == null) {
+          throw const AppError(
+            'AVATAR_INVALID',
+            'Format non pris en charge : utilisez une photo JPEG, PNG ou WebP.',
+          );
+        }
+        // Nom unique : évite qu'un ancien cache affiche l'ancienne photo.
+        final path =
+            '$_uid/avatar-${DateTime.now().millisecondsSinceEpoch}.$extension';
+        await _client.storage
+            .from(_bucket)
+            .uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(contentType: contentType),
+            );
+        final profile = await _setAvatarPath(path);
+        // Nettoyage des anciennes photos : un échec ici ne doit pas annuler le changement.
+        await _removeAvatarFiles(keep: path).catchError((_) {});
+        return profile;
+      });
+
+  @override
+  Future<Profile> removeAvatar() => _guard(() async {
+    final profile = await _setAvatarPath(null);
+    await _removeAvatarFiles();
+    return profile;
+  });
+
+  @override
+  Future<void> requestAccountDeletion() => _guard(() async {
+    // Photos supprimées d'abord (meilleur effort) : le compte devient ensuite inactif.
+    await _removeAvatarFiles().catchError((_) {});
+    await _client.rpc('request_account_deletion');
+  });
 
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {

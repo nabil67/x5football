@@ -8,6 +8,9 @@ import '../../models/match.dart';
 import '../../models/transfer.dart';
 import '../../ui/formatters.dart';
 import '../../ui/maps_launcher.dart';
+import '../../ui/states.dart';
+import '../../ui/user_avatar.dart';
+import 'match_list_screen.dart' show StatusBadge;
 import 'match_form_screen.dart';
 import 'transfer_section.dart';
 
@@ -209,27 +212,13 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       body: FutureBuilder(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: CircularProgressIndicator(semanticsLabel: 'Chargement'),
-            );
+          // Pendant un rechargement, l'écran précédent reste affiché.
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
+            return const LoadingView();
           }
           if (snapshot.hasError) {
-            final error = snapshot.error;
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    error is AppError ? error.message : AppError.genericMessage,
-                  ),
-                  TextButton(
-                    onPressed: _reload,
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            );
+            return MessageView.error(snapshot.error, onRetry: _reload);
           }
           final (:match, :participants, :transfer) = snapshot.data!;
           return _MatchDetails(
@@ -288,17 +277,17 @@ class _MatchDetails extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(match.title, style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        if (match.displayStatus != MatchDisplayStatus.open)
-          Text(
-            match.displayStatus.label,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: match.displayStatus == MatchDisplayStatus.cancelled
-                  ? theme.colorScheme.error
-                  : null,
-            ),
+        Semantics(
+          header: true,
+          child: Text(match.title, style: theme.textTheme.headlineSmall),
+        ),
+        if (match.displayStatus != MatchDisplayStatus.open) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: StatusBadge(match.displayStatus),
           ),
+        ],
         const SizedBox(height: 8),
         _InfoRow(icon: Icons.event, text: formatMatchDate(match.startsAt)),
         _InfoRow(
@@ -400,13 +389,14 @@ class _MatchDetails extends StatelessWidget {
             onRespond: onRespondTransfer,
           ),
         const SizedBox(height: 24),
-        Text('Participants', style: theme.textTheme.titleMedium),
+        Semantics(
+          header: true,
+          child: Text('Participants', style: theme.textTheme.titleMedium),
+        ),
         for (final p in participants)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              child: Text(p.displayName.characters.first.toUpperCase()),
-            ),
+            leading: UserAvatar(name: p.displayName, path: p.avatarUrl),
             title: Text(p.displayName),
             subtitle: p.isOrganizer ? const Text('Organisateur') : null,
           ),

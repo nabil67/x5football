@@ -9,6 +9,8 @@ import 'data/match_repository.dart';
 import 'data/notification_repository.dart';
 import 'data/profile_repository.dart';
 import 'features/auth/auth_gate.dart';
+import 'ui/theme.dart';
+import 'ui/user_avatar.dart';
 
 class X5FootballApp extends StatelessWidget {
   const X5FootballApp({
@@ -20,6 +22,7 @@ class X5FootballApp extends StatelessWidget {
     required this.geocoding,
     required this.location,
     required this.notifications,
+    this.avatarResolver,
   });
 
   final AppConfig config;
@@ -30,6 +33,9 @@ class X5FootballApp extends StatelessWidget {
   final LocationService location;
   final NotificationRepository notifications;
 
+  /// Accès aux photos de profil ; absent dans les tests (initiales affichées).
+  final AvatarResolver? avatarResolver;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -38,9 +44,12 @@ class X5FootballApp extends StatelessWidget {
       supportedLocales: const [Locale('fr', 'FR')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       debugShowCheckedModeBanner: config.environment != AppEnvironment.prod,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-      ),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
+      builder: (context, child) => avatarResolver == null
+          ? child!
+          : AvatarImages(resolve: avatarResolver!, child: child!),
       home: AuthGate(
         auth: auth,
         profiles: profiles,

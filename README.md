@@ -45,6 +45,10 @@ deno test supabase/functions          # tests des Edge Functions (Deno 2)
 cd app && flutter analyze && flutter test
 ```
 
+`supabase db reset` recharge aussi des données de démonstration locales (`supabase/seed.sql` : un organisateur « Karim » et des matchs autour de Tours, à Paris et à Rio).
+
+Les tests d'accessibilité (`app/test/accessibility_test.dart`) vérifient chaque écran principal en thème clair et sombre (zones tactiles, libellés, contrastes) et avec un texte agrandi à 200 %. Tout nouvel écran doit y être ajouté.
+
 ## Environnements
 
 | Environnement | Backend | Config app |

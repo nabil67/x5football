@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:x5football/data/app_error.dart';
 import 'package:x5football/data/auth_repository.dart';
@@ -78,6 +79,25 @@ class FakeProfileRepository implements ProfileRepository {
   Future<Profile> updateDisplayName(String displayName) async {
     calls.add('update:$displayName');
     return profile = Profile(id: 'me', displayName: displayName);
+  }
+
+  @override
+  Future<Profile> updateAvatar(
+    Uint8List bytes, {
+    required String extension,
+  }) async {
+    calls.add('avatar:${bytes.length}:$extension');
+    return profile = Profile(
+      id: 'me',
+      displayName: profile!.displayName,
+      avatarUrl: 'me/avatar-1.$extension',
+    );
+  }
+
+  @override
+  Future<Profile> removeAvatar() async {
+    calls.add('removeAvatar');
+    return profile = Profile(id: 'me', displayName: profile!.displayName);
   }
 
   @override

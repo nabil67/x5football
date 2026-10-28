@@ -59,6 +59,7 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
   bool _loading = false;
   bool _locating = false;
   String? _error;
+  bool _offline = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -96,7 +97,12 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
         _hasMore = page.length == search.limit;
       });
     } on AppError catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _offline = e.isOffline;
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -114,7 +120,12 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
       _centerLabel = 'Autour de ma position';
       await _search();
     } on AppError catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _offline = e.isOffline;
+        });
+      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -179,39 +190,37 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Wrap(
             spacing: 12,
+            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              DropdownButton<int>(
+              _FilterMenu<int>(
+                label: 'Rayon $_radiusKm km',
                 value: _radiusKm,
-                items: [
+                enabled: !busy,
+                options: [
                   for (final km in MatchSearch.radiusChoicesKm)
-                    DropdownMenuItem(value: km, child: Text('Rayon $km km')),
+                    (km, 'Rayon $km km'),
                 ],
-                onChanged: busy
-                    ? null
-                    : (v) => _setFilter(() => _radiusKm = v!),
+                onSelected: (v) => _setFilter(() => _radiusKm = v),
               ),
-              DropdownButton<_Period>(
+              _FilterMenu<_Period>(
+                label: _period.label,
                 value: _period,
-                items: [
-                  for (final p in _Period.values)
-                    DropdownMenuItem(value: p, child: Text(p.label)),
-                ],
-                onChanged: busy ? null : (v) => _setFilter(() => _period = v!),
+                enabled: !busy,
+                options: [for (final p in _Period.values) (p, p.label)],
+                onSelected: (v) => _setFilter(() => _period = v),
               ),
-              DropdownButton<SkillLevel?>(
-                value: _skill,
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('Tous les niveaux'),
-                  ),
-                  for (final l in SkillLevel.values.where(
-                    (l) => l != SkillLevel.all,
-                  ))
-                    DropdownMenuItem(value: l, child: Text(l.label)),
+              // « Tous niveaux » dans le menu = aucun filtre de niveau.
+              _FilterMenu<SkillLevel>(
+                label: _skill?.label ?? 'Tous les niveaux',
+                value: _skill ?? SkillLevel.all,
+                enabled: !busy,
+                options: [
+                  for (final l in SkillLevel.values)
+                    (l, l == SkillLevel.all ? 'Tous les niveaux' : l.label),
                 ],
-                onChanged: busy ? null : (v) => _setFilter(() => _skill = v),
+                onSelected: (v) =>
+                    _setFilter(() => _skill = v == SkillLevel.all ? null : v),
               ),
               FilterChip(
                 label: const Text('Places disponibles'),
@@ -223,29 +232,47 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
             ],
           ),
         ),
-      if (busy) const LinearProgressIndicator(),
+      if (busy)
+        const LinearProgressIndicator(semanticsLabel: 'Recherche en cours'),
       if (_error != null)
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            _error!,
-            style: TextStyle(color: theme.colorScheme.error),
-            semanticsLabel: 'Erreur : $_error',
+        // Annoncé immédiatement par les lecteurs d'écran.
+        Semantics(
+          liveRegion: true,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ExcludeSemantics(
+                  child: Icon(
+                    _offline ? Icons.cloud_off : Icons.error_outline,
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      const Divider(height: 1),
+      const SizedBox(height: 8),
     ];
 
-    final Widget? emptyMessage = _center == null
-        ? const Text(
+    final (IconData, String)? empty = _center == null
+        ? (
+            Icons.travel_explore,
             'Utilisez votre position ou choisissez une ville pour voir les matchs proches.',
-            textAlign: TextAlign.center,
           )
         : !_loading && _error == null && _results.isEmpty
-        ? Text(
+        ? (
+            Icons.sports_soccer,
             'Aucun match dans un rayon de $_radiusKm km.\n'
-            'Élargissez le rayon ou créez le premier !',
-            textAlign: TextAlign.center,
+                'Élargissez le rayon ou créez le premier !',
           )
         : null;
 
@@ -257,16 +284,29 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
         padding: const EdgeInsets.only(bottom: 96),
         children: [
           ...header,
-          if (emptyMessage != null)
-            Padding(padding: const EdgeInsets.all(32), child: emptyMessage),
-          for (final match in _results) ...[
+          if (empty != null)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  ExcludeSemantics(
+                    child: Icon(
+                      empty.$1,
+                      size: 48,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(empty.$2, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          for (final match in _results)
             MatchTile(
               match: match,
               onTap: widget.onTap,
               distanceKm: _center!.distanceKmTo(match.location),
             ),
-            const Divider(height: 1),
-          ],
           if (_hasMore && !_loading)
             Padding(
               padding: const EdgeInsets.all(16),
@@ -276,6 +316,59 @@ class _NearbyMatchesViewState extends State<NearbyMatchesView>
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Filtre compact affichant sa valeur ; ouvre un menu de choix.
+/// Le libellé passe à la ligne si le texte du téléphone est très agrandi.
+class _FilterMenu<T> extends StatelessWidget {
+  const _FilterMenu({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onSelected,
+    required this.enabled,
+  });
+
+  final String label;
+  final T value;
+  final List<(T, String)> options;
+  final ValueChanged<T> onSelected;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return PopupMenuButton<T>(
+      enabled: enabled,
+      initialValue: value,
+      tooltip: 'Modifier le filtre',
+      onSelected: onSelected,
+      itemBuilder: (_) => [
+        for (final (option, text) in options)
+          CheckedPopupMenuItem(
+            value: option,
+            checked: option == value,
+            child: Text(text),
+          ),
+      ],
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.only(left: 12, right: 4),
+        decoration: BoxDecoration(
+          border: Border.all(color: scheme.outline),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: Text(label)),
+            const ExcludeSemantics(child: Icon(Icons.arrow_drop_down)),
+          ],
+        ),
       ),
     );
   }

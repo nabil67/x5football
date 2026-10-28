@@ -274,6 +274,7 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
                 onTap: _busy ? null : _pickStart,
               ),
               DropdownButtonFormField<int>(
+                isExpanded: true,
                 initialValue: _duration,
                 decoration: const InputDecoration(labelText: 'Durée'),
                 items: [
@@ -319,6 +320,7 @@ class _MatchFormScreenState extends State<MatchFormScreen> {
                 },
               ),
               DropdownButtonFormField<SkillLevel>(
+                isExpanded: true,
                 initialValue: _skill,
                 decoration: const InputDecoration(labelText: 'Niveau'),
                 items: [

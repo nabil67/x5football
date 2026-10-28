@@ -31,6 +31,14 @@ Future<void> main() async {
       geocoding: SupabaseGeocodingRepository(client),
       location: GeolocatorLocationService(),
       notifications: SupabaseNotificationRepository(client),
+      // Bucket privé : chaque photo est demandée avec le jeton de la session en cours.
+      avatarResolver: (path) => NetworkImage(
+        '${config.supabaseUrl}/storage/v1/object/authenticated/avatars/$path',
+        headers: {
+          'apikey': config.supabasePublishableKey,
+          'Authorization': 'Bearer ${client.auth.currentSession?.accessToken}',
+        },
+      ),
     ),
   );
 }
