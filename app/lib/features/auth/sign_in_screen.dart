@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/app_error.dart';
 import '../../data/auth_repository.dart';
+import '../../ui/legal_links.dart';
 
 /// Connexion en deux temps : saisie de l'e-mail, puis du code reçu.
 class SignInScreen extends StatefulWidget {
@@ -136,6 +137,14 @@ class _SignInScreenState extends State<SignInScreen> {
                   onPressed: _busy ? null : _changeEmail,
                   child: const Text('Changer d\'adresse e-mail'),
                 ),
+              const SizedBox(height: 24),
+              Text(
+                'En continuant, vous acceptez les conditions d\'utilisation '
+                'et la politique de confidentialité.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const LegalLinks(),
             ],
           ),
         ),

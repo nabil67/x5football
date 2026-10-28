@@ -6,6 +6,7 @@ import '../../data/moderation_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../models/profile.dart';
 import '../../ui/image_pick.dart';
+import '../../ui/legal_links.dart';
 import '../moderation/blocked_users_screen.dart';
 import '../../ui/user_avatar.dart';
 
@@ -235,6 +236,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextButton.styleFrom(foregroundColor: colors.error),
                 child: const Text('Supprimer mon compte'),
               ),
+              const SizedBox(height: 16),
+              const LegalLinks(),
             ],
           ),
         ),
