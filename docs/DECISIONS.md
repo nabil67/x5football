@@ -42,6 +42,11 @@
 | 2026-10-28 | Intégration continue GitHub Actions sur le dépôt privé `nabil67/x5football` : application, base (migrations depuis une base vide + pgTAP), Edge Functions | Validé par le porteur du projet ; aucun secret nécessaire. |
 | 2026-10-28 | Audit de sécurité automatique (`110_security_audit`) : RLS partout, aucun accès anonyme, aucune écriture directe hors nom/photo, `search_path` fixé, aucune colonne e-mail ni position exposée | S'applique à toute nouvelle table ou fonction. |
 | 2026-10-28 | Signature Android de publication via `app/android/key.properties` (non versionné) ; sans ce fichier, signature de debug | Clé jamais dans le dépôt ; procédure dans `docs/BETA.md`. |
+| 2026-10-29 | Hébergement : projet Supabase `x5football` (réf. `gpasemdbjnesijjvrref`), région Paris (eu-west-3), offre gratuite ; organisation `x5football` | Validé par le porteur du projet (données en France). |
+| 2026-10-29 | E-mails de connexion envoyés par Brevo (SMTP, offre gratuite 300/jour), expéditeur `x5football <nabil.belahrach@gmail.com>` ; code à 6 chiffres valable 10 min (le projet en ligne envoyait 8 chiffres par défaut) | Validé par le porteur du projet (pas de nom de domaine). L'offre gratuite de Supabase interdit de modifier le modèle d'e-mail sans SMTP personnalisé. Un expéditeur Gmail peut arriver en indésirables : un nom de domaine réglera ce point. |
+| 2026-10-29 | Contact public (pages légales, User-Agent Nominatim, expéditeur) : `nabil.belahrach@gmail.com` | Validé par le porteur du projet. |
+| 2026-10-29 | Pages légales (confidentialité, conditions, suppression de compte) publiées sur GitHub Pages depuis `site/`, liées dans l'application | Gratuit ; URLs exigées par Google Play. Textes à faire relire par un juriste avant le lancement public. |
+| 2026-10-29 | Secrets de production hors du dépôt, dans `C:\Users\nabil\cles` (clé Android, mot de passe base, secret de nettoyage, SMTP, jeton Supabase) | À sauvegarder hors du PC. Jeton Supabase et clé SMTP passés dans la conversation : à révoquer et régénérer après la mise en ligne. |
 | 2026-10-28 | Position du téléphone demandée seulement sur action (« Autour de moi », « Ma position actuelle »), jamais en arrière-plan ni enregistrée | Confidentialité ; le GPS reste facultatif (recherche par ville). |
 
 ## Décisions ouvertes
@@ -50,11 +55,11 @@
 |---|---|---|
 | Connexion WhatsApp | Fournisseur (Twilio Verify, MessageBird…), compte Meta Business, coût par message | Avant l'ajout de WhatsApp |
 | Délai de grâce avant purge d'un compte supprimé | 0 (immédiat) aujourd'hui ; à aligner sur la politique de conservation | Publication |
-| Expéditeur e-mail de production (SMTP) | Resend, Postmark, Brevo, SendGrid… (le SMTP intégré de Supabase est limité à quelques e-mails/heure) | Bêta |
 | Langue(s) de l'interface | Français seul aujourd'hui ; ajout de l'anglais (structure de traduction à prévoir) | Publication |
 | Devise des coûts estimés | EUR par défaut aujourd'hui ; devise choisie par l'organisateur (liste ISO 4217) | Étape 4 ou 7 |
 | Unité de distance | km partout (actuel), ou km/miles selon la région du téléphone | Publication |
-| Contact pour Nominatim | Adresse e-mail de contact à mettre dans `GEOCODER_USER_AGENT` (exigée par les règles d'usage) | Mise en production |
+| Accès des examinateurs Google (connexion par code e-mail) | Compte de démonstration avec boîte e-mail dédiée partagée le temps de l'examen, ou mécanisme de connexion de démonstration côté serveur | Tests fermés / production sur Google Play |
+| Nom de domaine | ~10 €/an (ex. `x5football.fr`) : meilleure arrivée des e-mails (expéditeur authentifié), adresse de contact professionnelle | Lancement public |
 | Notifications push | Firebase Cloud Messaging retenu ; nécessite un projet Firebase créé par le porteur du projet (gratuit) | Quand le projet Firebase est prêt |
 | Versions minimales Android / iOS | Défauts Flutter actuels | Publication |
 | Build iOS | Mac, ou CI macOS (Codemagic, GitHub Actions) + compte Apple Developer | Tests iOS |

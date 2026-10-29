@@ -4,6 +4,18 @@ Procédure pour passer de l'environnement local à un projet Supabase réel et �
 installable par des testeurs. Aucune valeur secrète ne doit être versionnée : chaque secret
 est indiqué ici par son emplacement, jamais par sa valeur.
 
+## État au 29 octobre 2026
+
+| Étape | État |
+|---|---|
+| Projet Supabase `gpasemdbjnesijjvrref` (Paris), migrations, tâches cron, bucket | ✅ vérifié en ligne |
+| Edge Functions `geocode` et `purge-avatars`, secrets, Vault | ✅ nettoyage testé en ligne |
+| Authentification : code 6 chiffres / 10 min, modèle français, SMTP Brevo | ✅ code reçu sur une vraie adresse, connexion vérifiée |
+| Pages légales en ligne (GitHub Pages) | ✅ |
+| Clé de signature, `.aab` signé (1.0.0+1) | ✅ |
+| Compte Google Play Console, envoi en tests internes | ⏳ à faire (voir `docs/PLAY_STORE.md`) |
+| Test complet de l'application de production sur téléphone | ⏳ |
+
 ## 1. Projet Supabase
 
 1. Créer un projet sur [supabase.com](https://supabase.com) (région proche des utilisateurs).
